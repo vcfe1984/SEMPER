@@ -23,8 +23,10 @@ function setHash() {
 
 // ---------- rendering ----------
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const marks = (s) => esc(s).replace(/\s*([※*＊†])\s*/g, '<span class="mk">$1</span>');
-function renderLine(l, ctx) {
+const marks = (s) => esc(s.replace(/\s*[※*＊†]\s*/g, ''));
+const VERSE = new Set(['psalmody', 'gospel', 'invit', 'tedeum']);
+const MARK_END = /[※*＊†]\s*$/;
+function renderLine(l, ctx = {}) {
   let m;
   if (l.startsWith('§')) return `<h4 class="alt">${esc(l.slice(1))}</h4>`;
   if ((m = l.match(/^(領|眾|答|啟|應)\s*[：:]\s*(.*)$/))) return `<p class="vr"><span class="spk">${m[1]}：</span>${marks(m[2])}</p>`;
@@ -36,8 +38,11 @@ function renderLine(l, ctx) {
   if (l.length < 40 && /^(聖詠|聖歌|讚主曲|西默盎|匝加利亞|聖母謝主曲|\(路)/.test(l)) return `<p class="ps">${esc(l)}</p>`;
   if (/^(恭讀|選讀)/.test(l) && l.length < 60) return `<p class="rd">${esc(l)}</p>`;
   if (/^(對答詠|領：|答：)/.test(l)) return `<p>${esc(l)}</p>`;
-  const prose = l.length > 34 && !/[※*＊†]\s*$/.test(l);
-  return `<p${prose ? ' class="prose"' : ''}>${marks(l)}</p>`;
+  let cls = '';
+  if (VERSE.has(ctx.k)) cls = MARK_END.test(l) ? '' : 've';
+  else if (ctx.k === 'hymn') cls = /[。；！？」]\s*$/.test(l) ? 've' : '';
+  else if (l.length > 34 && !MARK_END.test(l)) cls = 'prose';
+  return `<p${cls ? ` class="${cls}"` : ''}>${marks(l)}</p>`;
 }
 function renderSection(s, hour) {
   if (hour === '2' && s.sub && s.sub !== S.sub) return '';
@@ -50,7 +55,7 @@ function renderSection(s, hour) {
     lines = pick ? pick.l : lines;
   }
   const h = s.h && !/^(午前|午時|午後)/.test(s.h) ? `<h2 class="sh">${esc(s.h)}${s.tag ? ` <span class="tag">${esc(s.tag)}</span>` : ''}</h2>` : '';
-  return `<section class="s-${s.k}">${h}${lines.map((l) => renderLine(l)).join('')}</section>`;
+  return `<section class="s-${s.k}">${h}${lines.map((l) => renderLine(l, s)).join('')}</section>`;
 }
 
 function renderCelebs(info) {
@@ -98,9 +103,7 @@ function applyPrefs() {
   const root = document.documentElement;
   root.style.setProperty('--fs', store.get('fs', 19) + 'px');
   const th = store.get('theme', null); if (th) root.dataset.theme = th; else delete root.dataset.theme;
-  document.body.classList.toggle('nomarks', !store.get('marks', false));
   document.body.classList.toggle('norubrics', !store.get('rubrics', true));
-  $('#marks').checked = store.get('marks', false);
   $('#rubrics').checked = store.get('rubrics', true);
   document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.theme === (th || '')));
 }
@@ -117,7 +120,6 @@ async function main() {
   $('#settings').onclick = (e) => { if (e.target.id === 'settings') $('#settings').hidden = true; };
   document.querySelectorAll('[data-fs]').forEach((b) => b.onclick = () => { store.set('fs', Math.max(14, Math.min(30, store.get('fs', 19) + Number(b.dataset.fs)))); applyPrefs(); });
   document.querySelectorAll('[data-theme]').forEach((b) => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); });
-  $('#marks').onchange = (e) => { store.set('marks', e.target.checked); applyPrefs(); };
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
   window.addEventListener('hashchange', () => { parseHash(); render(); });

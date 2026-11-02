@@ -1,5 +1,5 @@
 :root {
-  --bg: #fbf8f2; --paper: #fffdf8; --ink: #2a2522; --muted: #7b716a; --red: #a3241c; --line: #e6ddcf; --chip: #f1e9db; --accent: #7a1c1c;
+  --bg: #ffffff; --paper: #f8f6f3; --ink: #222; --muted: #77706a; --red: #a3241c; --line: #e6e1da; --chip: #f2eee9; --accent: #7a1c1c;
   --fs: 19px;
   font-family: "Noto Serif TC", "Songti TC", "PMingLiU", "MingLiU", "Noto Serif CJK TC", serif;
 }
@@ -10,7 +10,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
-body { font-size: var(--fs); line-height: 1.85; -webkit-text-size-adjust: 100%; }
+body { font-size: var(--fs); line-height: 1.55; -webkit-text-size-adjust: 100%; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 
 .top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top); }
@@ -24,7 +24,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .celebs { max-width: 760px; margin: 0 auto; padding: 10px 18px 0; display: flex; flex-wrap: wrap; gap: 6px; font-size: 14px; line-height: 1.4; }
 .celebs .day { width: 100%; color: var(--muted); font-size: 13px; }
-.chip { border: 1px solid var(--line); background: var(--paper); border-radius: 16px; padding: 4px 11px; text-align: left; }
+.chip { border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 4px 11px; text-align: left; }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chip small { opacity: .75; margin-left: 4px; }
 
@@ -40,8 +40,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 section { margin: 0 0 1.1em; }
 h2.sh { font-size: .86em; color: var(--red); margin: 1.4em 0 .35em; font-weight: 700; letter-spacing: .08em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .6em; }
 .tag { font-size: .78em; font-weight: 400; letter-spacing: 0; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 0 7px; line-height: 1.6; }
-p { margin: 0 0 .2em; }
-.s-psalmody p, .s-hymn p, .s-gospel p, .s-invit p { line-height: 1.65; }
+p { margin: 0; }
+.ve { margin-bottom: .75em; }
+.prose { margin-bottom: .5em; }
+.ant { margin: .5em 0 .75em; }
 .spk, .antl { color: var(--red); font-weight: 700; }
 .ant { margin: .45em 0; }
 .ps { font-size: .9em; color: var(--red); margin: .9em 0 .2em; font-weight: 700; }
