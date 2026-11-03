@@ -1,4 +1,4 @@
-import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate } from './office.js';
+import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
 const $ = (s) => document.querySelector(s);
@@ -10,7 +10,7 @@ function defaultHour() {
   const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hong_Kong', hour: 'numeric', hour12: false }).format(new Date()));
   if (h < 4) return '5'; if (h < 10) return '1'; if (h < 16) return '2'; if (h < 20) return '3'; return '5';
 }
-const S = { date: hkToday(), hour: defaultHour(), choice: {}, sub: store.get('sub', '午時') };
+const S = { date: hkToday(), hour: defaultHour(), choice: {}, sub: store.get('sub', '午時'), inv: store.get('inv', '95'), alt: store.get('alt', {}) };
 
 function parseHash() {
   const m = location.hash.match(/^#\/(\d{4}-\d\d-\d\d)?\/?(\d)?(?:\?c=([\w@]*))?/);
@@ -23,7 +23,8 @@ function setHash() {
 
 // ---------- rendering ----------
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const marks = (s) => esc(s.replace(/\s*[※*＊†]\s*/g, ''));
+// chanting marks are never shown; stray spaces between Chinese characters are dropped
+const marks = (s) => esc(s.replace(/\s*[※*＊†]\s*/g, '').replace(/(?<=[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef])\s+(?=[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef])/g, ''));
 const VERSE = new Set(['psalmody', 'gospel', 'invit', 'tedeum']);
 const MARK_END = /[※*＊†]\s*$/;
 function renderLine(l, ctx = {}) {
@@ -44,8 +45,41 @@ function renderLine(l, ctx = {}) {
   else if (l.length > 34 && !MARK_END.test(l)) cls = 'prose';
   return `<p${cls ? ` class="${cls}"` : ''}>${marks(l)}</p>`;
 }
+const tabs = (attr, items, cur) => `<div class="tabs" role="tablist">${items.map(([v, lab]) => `<button class="pill" role="tab" ${attr}="${v}" aria-pressed="${v === cur}">${esc(lab)}</button>`).join('')}</div>`;
+
+// 序經: the day's antiphon with Ps 95 (default), 100, 67 or 24 — antiphon repeated after each strophe
+function renderInvit(s) {
+  const P = invitPsalms();
+  // the day's antiphon(s): lines before the psalm; "或" separates alternatives
+  const head = []; for (const l of s.lines) { if (/^聖詠/.test(l)) break; head.push(l); }
+  const ants = []; let cur = null;
+  for (const l of head) {
+    if (/^[（(]?或[)）]?$/.test(l)) { cur = null; continue; }
+    const m = l.match(/^(?:領|眾)\s*[：:]\s*(.*)$/) || l.match(/^或[：:]\s*(?:領\s*[：:]\s*)?(.*)$/);
+    if (m && m[1] && !cur) { cur = m[1]; ants.push(cur); }
+  }
+  if (!P || !ants.length) return null;
+  const ai = Math.min(S.alt['invit-ant'] || 0, ants.length - 1), ant = ants[ai];
+  const ps = P[S.inv] || P['95'];
+  const lab = { 95: '聖詠95', 100: '聖詠100', 67: '聖詠67', 24: '聖詠24' };
+  const out = [`領：${ant}`, `眾：${ant}`];
+  const body = [`§${ps.title}`, ps.epi];
+  for (const st of ps.strophes) body.push(...st.map((l) => '¶' + l), `對經：${ant}`);
+  body.push(...ps.gloria.map((l) => '¶' + l), `對經：${ant}`);
+  const h = `<h2 class="sh">${esc(s.h)}${s.tag ? ` <span class="tag">${esc(s.tag)}</span>` : ''}</h2>`;
+  const antTabs = ants.length > 1 ? tabs('data-alt', ants.map((a, j) => [`invit-ant:${j}`, `對經${'一二三四'[j]}`]), `invit-ant:${ai}`) : '';
+  return `<section class="s-invit">${h}${antTabs}${tabs('data-inv', ['95', '100', '67', '24'].map((k) => [k, lab[k]]), S.inv)}${out.map((l) => renderLine(l, s)).join('')}${body.map((l) => l.startsWith('§') ? `<p class="ps">${esc(l.slice(1))}</p>` : l.startsWith('¶') ? `<p>${marks(l.slice(1))}</p>` : renderLine(l, s)).join('')}</section>`;
+}
+
 function renderSection(s, hour) {
   if (hour === '2' && s.sub && s.sub !== S.sub) return '';
+  if (s.k === 'invit') { const r = renderInvit(s); if (r) return r; }
+  if (s.alts && s.alts.length > 1) {      // alternative texts (e.g. hymns from the commission and the three volumes)
+    const key = `${hour}${s.k}`; const i = Math.min(S.alt[key] || 0, s.alts.length - 1);
+    const a = s.alts[i];
+    const h = `<h2 class="sh">${esc(s.h)}${a.tag ? ` <span class="tag">${esc(a.tag)}</span>` : ''}</h2>`;
+    return `<section class="s-${s.k}">${h}${tabs('data-alt', s.alts.map((x, j) => [`${key}:${j}`, x.label]), `${key}:${i}`)}${a.lines.map((l) => renderLine(l, s)).join('')}</section>`;
+  }
   if (s.k === 'bio') return `<section class="bio"><h2 class="sh">${esc(s.h)}</h2>${s.lines.map((l) => `<p>${esc(l)}</p>`).join('')}</section>`;
   let lines = s.lines;
   if (hour === '2' && s.k === 'hymn') { // three hymns for 午前/午時/午後 — show the selected one
@@ -94,6 +128,8 @@ function render() {
   html += r.sections.length ? r.sections.map((s) => renderSection(s, S.hour)).join('') : `<p class="empty">此日日課尚未收錄。</p>`;
   $('#office').innerHTML = html;
   $('#office').querySelectorAll('[data-sub]').forEach((b) => b.onclick = () => { S.sub = b.dataset.sub; store.set('sub', S.sub); render(); });
+  $('#office').querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => { S.inv = b.dataset.inv; store.set('inv', S.inv); render(); });
+  $('#office').querySelectorAll('[data-alt]').forEach((b) => b.onclick = () => { const [k, i] = b.dataset.alt.split(':'); S.alt[k] = +i; store.set('alt', S.alt); render(); });
   setHash();
 }
 
@@ -127,12 +163,12 @@ async function main() {
   const { first, last } = nearestArchiveDate();
   $('#coverage').textContent = `存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
   render();
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  if (navigator.serviceWorker && navigator.serviceWorker.register && location.protocol !== 'file:') try {
     navigator.serviceWorker.register('sw.js').then((reg) => {
       reg.addEventListener('updatefound', () => { const w = reg.installing; w && w.addEventListener('statechange', () => {
         if (w.state === 'installed' && navigator.serviceWorker.controller) { $('#update').hidden = false; $('#updateBtn').onclick = () => w.postMessage('skip'); } }); });
     });
     navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
-  }
+  } catch (e) { /* offline caching unavailable in this browser */ }
 }
 main();

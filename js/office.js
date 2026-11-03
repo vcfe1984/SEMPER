@@ -18,6 +18,7 @@ export async function loadData(base = 'data/') {
   const [days, texts, santoral, propers, commons, index] = await Promise.all(
     ['days.json', 'texts.json', 'santoral.json', 'propers.json', 'commons.json', 'index.json'].map(get));
   D = { days, texts, santoral, propers, commons, index };
+  try { D.invit = await get('invit.json'); } catch { D.invit = null; }
   return D;
 }
 
@@ -98,6 +99,65 @@ function basePage(dateStr, hour, L) {
   return { pg, notes, from: src };
 }
 
+// ---------- 第一晚禱 (First Vespers) for composed days ----------
+const nextDay = (dateStr) => iso(new Date(fromIso(dateStr).getTime() + 864e5));
+const prevDay = (dateStr) => iso(new Date(fromIso(dateStr).getTime() - 864e5));
+const isFirstVespersPage = (date, hour) => { const pg = page(date, hour); return !!pg && /第一(晚禱|夜禱)/.test(pg.t); };
+/** Does the celebration of L have First Vespers? Sundays (except Easter), solemnities, feasts of the Lord on a Sunday. */
+function hasFirstVespers(L) {
+  const p = L.primary;
+  if (p.key === 'easter' || p.rank === 'allsouls') return false;
+  if (p.rank === 'solemnity') return true;
+  return L.temporal.wd === 0;   // Sunday, or a feast of the Lord kept on Sunday
+}
+/** Archive dates whose evening was the First Vespers of this celebration. */
+function eveCandidates(L) {
+  const p = L.primary, I = D.index;
+  const dates = p.source === 'santoral' ? I.s[p.id] : I.t[p.source === 'movable' ? p.key : L.temporal.key];
+  return (dates || []).map(prevDay).filter((e) => isFirstVespersPage(e, '3')).reverse();
+}
+function eveOverride(dateStr, hour, L, pg, notes) {
+  const L2 = liturgicalDay(fromIso(nextDay(dateStr)), D.santoral);
+  const pToday = L.primary.prec ?? L.temporal.prec, pTomorrow = L2.primary.prec ?? L2.temporal.prec;
+  const wantFirst = hasFirstVespers(L2) && pTomorrow < pToday;
+  if (wantFirst) {
+    const eve = eveCandidates(L2)[0];
+    if (eve) {
+      const fv = clone(page(eve, hour));
+      fv.t = `${dateLabel(dateStr)}　${L2.primary.title}${{ solemnity: '（節日）', feast: '（慶日）' }[L2.primary.rank] || ''}　${hour === '3' ? '第一晚禱' : '夜禱（主日第一夜禱）'}`;
+      notes.length = 0; notes.push(`經文取自 ${eve} 的存檔（${L2.primary.title}第一${hour === '3' ? '晚禱' : '夜禱'}）`);
+      return fv;
+    }
+    notes.push(`今晚應誦念「${L2.primary.title}」的第一${hour === '3' ? '晚禱' : '夜禱'}，但存檔尚未收錄；暫用本日經文。`);
+    return pg;
+  }
+  // the borrowed page was an eve in the archive year, but not this year → use the weekday office
+  if (pg && /第一(晚禱|夜禱)/.test(pg.t)) {
+    const T = L.temporal, p = L.primary, I = D.index;
+    // 1) another archived year of the same celebration whose evening was its own
+    const same = (p.source === 'santoral' ? I.s[p.id] : I.t[p.source === 'movable' ? p.key : T.key]) || [];
+    const own = same.slice().reverse().find((d) => d !== dateStr && !isFirstVespersPage(d, hour));
+    // 2) otherwise the weekday office of the same psalter week and day
+    const psal = !own && T.psalter ? (I.p[`${T.season}|${T.psalter}|${T.wd}`] || []).slice().reverse().find((d) => !isFirstVespersPage(d, hour)) : null;
+    const alt = own || psal;
+    const collect = p.source === 'santoral' && D.propers[p.id] && D.propers[p.id].collect;
+    notes.length = 0;
+    if (alt) {
+      const w = clone(page(alt, hour));
+      w.t = composedTitle(dateStr, L, hour);
+      if (own) notes.push(`經文取自 ${own} 的存檔`);
+      else {
+        notes.push(`平日${HOUR_NAME[hour]}取自聖詠集同周同日（${psal}）`);
+        if (collect && hour === '3') { replaceSection(w.s, 'oratio', { lines: [collect], id: '', tag: '專用' }); notes.push(`「${p.title}」晚禱的專用對經等尚未收錄，暫用平日經文及本慶日集禱經。`); }
+      }
+      return w;
+    }
+    notes.push(`「${p.title}」的${HOUR_NAME[hour]}尚未收錄於存檔。`);
+    return { t: composedTitle(dateStr, L, hour), s: collect && hour === '3' ? [{ k: 'oratio', h: '結束禱詞', lines: [collect], tag: '專用' }] : [] };
+  }
+  return pg;
+}
+
 const CNN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十', '二十一', '二十二', '二十三', '二十四', '二十五', '二十六', '二十七', '二十八', '二十九', '三十', '三十一'];
 export const HOUR_NAME = { 1: '晨禱', 2: '日間祈禱', 3: '晚禱', 4: '誦讀日課', 5: '夜禱' };
 export function dateLabel(dateStr) { const [, m, d] = dateStr.split('-').map(Number); return `${CNN[m]}月${CNN[d]}日`; }
@@ -126,9 +186,15 @@ function collectFor(id, L) {
 /** The office to display. choiceId = '' for the default celebration, or an optional memorial id. */
 export function office(dateStr, hour, choiceId = '') {
   const { L, choices } = dayInfo(dateStr);
-  const { pg, notes } = basePage(dateStr, hour, L);
+  let { pg, notes } = basePage(dateStr, hour, L);
+  let firstVespers = false;
+  if ((hour === '3' || hour === '5') && !D.days[dateStr]) {
+    const before = pg; pg = eveOverride(dateStr, hour, L, pg, notes);
+    firstVespers = pg !== before && /第一(晚禱|夜禱)/.test(pg.t);
+  }
   if (!pg) return { title: L.primary.title, sections: [], notes, choices };
-  const choice = choices.find((c) => c.id === choiceId && c.id);
+  // on the evening of First Vespers the day's (optional) memorial is not said
+  const choice = firstVespers ? null : choices.find((c) => c.id === choiceId && c.id);
   let title = pg.t;
   if (choice && SANCT[hour]) {
     const P = D.propers[choice.id] || {};
@@ -158,9 +224,83 @@ export function office(dateStr, hour, choiceId = '') {
   } else if (choice && !SANCT[hour]) {
     notes.push('日間祈禱及夜禱按平日誦念。');
   }
-  const sections = pg.s.map((s) => ({ k: s.k, h: s.h, sub: s.sub, tag: s.tag, lines: s.lines || lines(s.id) }));
+  // alternative hymns for the same psalter hour (weekday/Sunday offices, not feasts or memorials)
+  const T = L.temporal, hy = D.index.hy || {};
+  if (!choice && L.primary.source === 'temporal' && T.psalter && hour !== '2' && !/第一晚禱/.test(title)) {
+    const alts = hy[`${T.season}|${T.psalter}|${T.wd}|${hour}`];
+    const hs = pg.s.find((x) => x.k === 'hymn');
+    if (alts && hs && hs.id) {
+      const ordered = [{ id: hs.id }, ...alts.filter((a) => a.id !== hs.id)].slice(0, 4);
+      if (ordered.length > 1) hs.alts = ordered.map((a, i) => ({ label: `讚美詩${'一二三四'[i]}`, lines: lines(a.id), tag: i ? (a.src || '') : '' }));
+    }
+  }
+  const sections = pg.s.map((s) => {
+    const sec = { k: s.k, h: s.h, sub: s.sub, tag: s.tag, alts: s.alts, lines: s.lines || lines(s.id) };
+    if (!sec.alts) { const o = splitOptions(sec.k, sec.lines, hour); if (o) sec.alts = o; }
+    else {
+      const flat = [];
+      sec.alts.forEach((a, i) => {
+        const sub = splitOptions(sec.k, a.lines, hour);
+        if (sub) sub.forEach((x) => flat.push({ label: sec.alts.length > 1 ? `${x.label}${'一二三四'[i]}` : x.label, lines: x.lines, tag: a.tag }));
+        else flat.push(a);
+      });
+      sec.alts = flat.slice(0, 4);
+    }
+    return sec;
+  });
   return { title, sections, notes, choices };
 }
 
+// ---------- texts that offer a choice ("或", "第一式／第二式", "夜間或清晨用／日間用") → tabs ----------
+const NUM = ['其一', '其二', '其三', '其四', '其五', '其六'];
+const NAMED = /^[（(]?(第[一二三四]式|夜間或清晨用|日間用)[)）]?$/;
+const OR = /^[（(]?或[)）]?(?:[：:\s]\s*(.*))?$/;
+export function splitOptions(k, lines, hour) {
+  if (['psalmody', 'invit', 'open', 'concl', 'pater'].includes(k) || (hour === '2' && k === 'hymn')) return null;
+  // Marian antiphons: numbered （一）（二）（三）…; anything after a trailing 或 belongs to another office
+  if (k === 'marian') {
+    const opts = []; let cur = null;
+    for (const l of lines) {
+      const m = l.match(/^[（(]([一二三四五六])[）)]\s*(\S+?)(?:\s*[(（].*)?$/);
+      if (m) { cur = { label: m[2].slice(0, 6), lines: [l] }; opts.push(cur); continue; }
+      if (/^[（(]?或[)）]?$/.test(l) && opts.length) break;
+      if (cur) cur.lines.push(l);
+    }
+    return opts.length > 1 ? opts : null;
+  }
+  // Gospel canticle / invitatory: only the antiphon changes; the canticle is shared and the closing antiphon follows the choice
+  if (k === 'gospel') {
+    const start = lines.findIndex((l) => /^[(（]路|^聖詠|^[(（]/.test(l) && !/^[（(]?或/.test(l));
+    const head = start > 0 ? lines.slice(0, start) : [];
+    const ants = head.filter((l) => /對經[：:]/.test(l));
+    if (ants.length < 2 || !head.some((l) => OR.test(l))) return null;
+    const body = lines.slice(start);
+    const last = body.map((l) => /^\S*對經[：:]/.test(l)).lastIndexOf(true);
+    return ants.slice(0, 6).map((a, i) => ({ label: NUM[i], lines: [a, ...body.map((l, j) => (j === last ? a : l))] }));
+  }
+  // an alternative petition in brackets inside the intercessions stays inline
+  const isOr = (l) => OR.test(l) && !(k === 'interc' && /^[（(]?或[：:]\s*領/.test(l));
+  if (!lines.some((l) => NAMED.test(l) || isOr(l))) return null;
+  const opts = []; let pre = []; let cur = null;
+  for (const l of lines) {
+    const nm = l.match(NAMED);
+    if (nm) { cur = { label: nm[1].replace('用', '').replace('夜間或清晨', '夜間'), lines: [] }; opts.push(cur); continue; }
+    if (isOr(l)) {
+      if (!cur) { cur = { label: '', lines: pre }; opts.push(cur); pre = []; }
+      const rest = (l.match(OR) || [])[1];
+      cur = { label: '', lines: rest ? [rest] : [] }; opts.push(cur); continue;
+    }
+    (cur ? cur.lines : pre).push(l);
+  }
+  const real = opts.filter((o) => o.lines.length);
+  if (real.length < 2) return null;
+  real.forEach((o, i) => {
+    if (!o.label) o.label = k === 'marian' ? (o.lines[0] || '').replace(/[，。；：、！？\s].*$/, '').slice(0, 6) || NUM[i] : NUM[i];
+    if (pre.length && opts[0].label) o.lines = [...pre, ...o.lines];   // shared lines before named options
+  });
+  return real.slice(0, 6);
+}
+
+export const invitPsalms = () => (D && D.invit) || null;
 export function nearestArchiveDate() { const ks = Object.keys(D.days).sort(); return { first: ks[0], last: ks[ks.length - 1] }; }
 export { iso };
