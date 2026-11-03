@@ -1,6 +1,7 @@
 import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
+const APP_VERSION = 'v12';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -218,7 +219,7 @@ async function main() {
   renderCalendars();
   zh();
   const { first, last } = nearestArchiveDate();
-  $('#coverage').textContent = `存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
+  $('#coverage').textContent = `版本 ${APP_VERSION}　存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
   render();
   if (navigator.serviceWorker && navigator.serviceWorker.register && location.protocol !== 'file:') try {
     navigator.serviceWorker.register('sw.js').then((reg) => {
