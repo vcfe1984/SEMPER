@@ -80,7 +80,12 @@ export function dayInfo(dateStr) {
 /** Base page for a date + hour (archive, or composed for dates outside the archive). Returns {page, notes, from}. */
 function basePage(dateStr, hour, L) {
   const notes = [];
-  if (D.days[dateStr] && archiveFits(dateStr, L)) return { pg: clone(page(dateStr, hour)), notes, from: dateStr };
+  if (D.days[dateStr] && archiveFits(dateStr, L)) {
+    const pg = clone(page(dateStr, hour));
+    // another calendar may name the saint differently (e.g. Taiwan): retitle, keeping 第一晚禱 pages as they are
+    if (pg && D.calId !== 'hk' && L.primary.source === 'santoral' && !/第一(晚禱|夜禱)/.test(pg.t)) pg.t = composedTitle(dateStr, L, hour);
+    return { pg, notes, from: dateStr };
+  }
   const p = L.primary, T = L.temporal, I = D.index;
   // feasts, solemnities, All Souls: whole page from the archive
   if (p.source === 'santoral' && p.rank !== 'memorial') {
@@ -97,7 +102,7 @@ function basePage(dateStr, hour, L) {
   if (!pg) {
     // weekday known only as a memorial day: weekday parts from there, the rest from the same psalter week/day
     const mem = latest(I.t['~' + key]);
-    const psal = T.psalter ? latest(I.p[`${T.season}|${T.psalter}|${T.wd}`]) : null;
+    const psal = T.psalter ? latest(I.p[`${T.season}|${T.psalter}|${T.wd}`]) : (T.season === 'xmas' && T.wd === 0 ? latest(I.p['ot|2|0']) : null);
     if (mem || psal) {
       pg = clone(page(mem || psal, hour));
       if (mem && psal && SANCT[hour]) {
@@ -108,7 +113,7 @@ function basePage(dateStr, hour, L) {
       }
       pg.t = `${T.title}（聖詠集第${'一二三四'[T.psalter - 1] || ''}周）`;
       src = mem || psal;
-      notes.push(mem ? `平日經文取自 ${mem}；其餘取自聖詠集同周同日（${psal || '—'}）` : `本日尚未收錄；經文暫取自聖詠集同周同日（${psal}），誦讀及結束禱詞可能與本周不同`);
+      notes.push(mem ? `平日經文取自 ${mem}；其餘取自聖詠集同周同日（${psal || '—'}）` : T.wd === 0 ? `本主日尚未收錄；經文暫取自聖詠集同周主日（${psal}），對經、讀經及結束禱詞待《每日頌禱》補充` : `本日尚未收錄；經文暫取自聖詠集同周同日（${psal}），誦讀及結束禱詞可能與本周不同`);
     }
   }
   if (!pg) return { pg: null, notes: ['此日日課尚未收錄於存檔，請待禮儀委員會發佈後更新。'], from: null };

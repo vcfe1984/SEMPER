@@ -64,6 +64,11 @@ function renderLine(l, ctx = {}) {
   else if (l.length > 34 && !MARK_END.test(l)) cls = 'prose';
   return `<p${cls ? ` class="${cls}"` : ''}>${marks(l)}</p>`;
 }
+// a canticle that follows the responsory in the same section (夜禱: 西默盎聖歌) is set out verse by verse
+function renderLines(lines, s) {
+  let ctx = s;
+  return lines.map((l) => { if (!VERSE.has(ctx.k) && l.length < 40 && /^(西默盎|聖母謝主曲|匝加利亞)/.test(l)) ctx = { ...s, k: 'gospel' }; return renderLine(l, ctx); }).join('');
+}
 const tabs = (attr, items, cur) => `<div class="tabs" role="tablist">${items.map(([v, lab]) => `<button class="pill" role="tab" ${attr}="${v}" aria-pressed="${v === cur}">${esc(lab)}</button>`).join('')}</div>`;
 
 // 序經: the day's antiphon with Ps 95 (default), 100, 67 or 24 — antiphon repeated after each strophe
@@ -97,7 +102,7 @@ function renderSection(s, hour) {
     const key = `${hour}${s.k}`; const i = Math.min(S.alt[key] || 0, s.alts.length - 1);
     const a = s.alts[i];
     const h = `<h2 class="sh">${esc(s.h)}${a.tag ? ` <span class="tag">${esc(a.tag)}</span>` : ''}</h2>`;
-    return `<section class="s-${s.k}">${h}${tabs('data-alt', s.alts.map((x, j) => [`${key}:${j}`, x.label]), `${key}:${i}`)}${a.lines.map((l) => renderLine(l, s)).join('')}</section>`;
+    return `<section class="s-${s.k}">${h}${tabs('data-alt', s.alts.map((x, j) => [`${key}:${j}`, x.label]), `${key}:${i}`)}${renderLines(a.lines, s)}</section>`;
   }
   if (s.k === 'bio') return `<section class="bio"><h2 class="sh">${esc(s.h)}</h2>${s.lines.map((l) => `<p>${esc(l)}</p>`).join('')}</section>`;
   let lines = s.lines;
@@ -108,7 +113,7 @@ function renderSection(s, hour) {
     lines = pick ? pick.l : lines;
   }
   const h = s.h && !/^(午前|午時|午後)/.test(s.h) ? `<h2 class="sh">${esc(s.h)}${s.tag ? ` <span class="tag">${esc(s.tag)}</span>` : ''}</h2>` : '';
-  return `<section class="s-${s.k}">${h}${lines.map((l) => renderLine(l, s)).join('')}</section>`;
+  return `<section class="s-${s.k}">${h}${renderLines(lines, s)}</section>`;
 }
 
 function renderCelebs(info) {
@@ -150,7 +155,18 @@ function render() {
   $('#office').querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => { S.inv = b.dataset.inv; store.set('inv', S.inv); render(); });
   $('#office').querySelectorAll('[data-alt]').forEach((b) => b.onclick = () => { const [k, i] = b.dataset.alt.split(':'); S.alt[k] = +i; store.set('alt', S.alt); render(); });
   setHash();
+  const cal = currentCalendar();
+  if (cal === 'tw') retext('#office h1, #celebs', /周/g, '週');            // 台灣用「週」
+  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');      // 港澳用「亞孟」，其他用「阿門」
   zh($('header') || document.body); zh($('#office')); zh($('#celebs') || document.body);
+}
+
+function retext(sel, re, to) {
+  for (const e of document.querySelectorAll(sel)) {
+    const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (re.test(n.nodeValue)) { re.lastIndex = 0; n.nodeValue = n.nodeValue.replace(re, to); }
+    re.lastIndex = 0;
+  }
 }
 
 function shift(n) { const d = fromIso(S.date); S.date = iso(new Date(d.getTime() + n * 864e5)); render(); window.scrollTo(0, 0); }
