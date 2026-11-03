@@ -2,6 +2,7 @@
 import { liturgicalDay, fromIso, iso, cycles } from './calendar.js';
 
 export const HOURS = [
+  { n: '0', name: '序經', short: '序經' },
   { n: '4', name: '誦讀日課', short: '誦讀' },
   { n: '1', name: '晨禱', short: '晨禱' },
   { n: '2', name: '日間祈禱', short: '日間' },
@@ -250,7 +251,18 @@ function collectFor(id, L) {
 }
 
 /** The office to display. choiceId = '' for the default celebration, or an optional memorial id. */
+/** 序經 is its own tab (said before the first hour of the day); 晨禱 then opens with 「天主，求你快來拯救我」. */
 export function office(dateStr, hour, choiceId = '') {
+  if (hour !== '0' && hour !== '1') return composeOffice(dateStr, hour, choiceId);
+  const r = composeOffice(dateStr, '1', choiceId);
+  const open = r.sections.find((x) => x.k === 'open'), invit = r.sections.find((x) => x.k === 'invit');
+  if (hour === '0') return { ...r, title: '序經', sections: [open, invit].filter(Boolean), notes: invit ? r.notes : [...r.notes, '本日序經尚未收錄。'] };
+  // the day's opening versicle (with or without 阿肋路亞 by season) as said at the other hours
+  const o4 = ['4', '2', '3'].map((h) => composeOffice(dateStr, h, choiceId).sections.find((x) => x.k === 'open' && x.lines.some((l) => /快來拯救/.test(l)))).find(Boolean);
+  const lauds = { k: 'open', h: '開端詞', lines: o4 ? o4.lines : ['領：天主，求你快來拯救我；', '眾：上主，求你速來扶助我。', '領：願光榮歸於父、及子、及聖神。', '眾：起初如何，今日亦然，直到永遠。亞孟。'] };
+  return { ...r, sections: r.sections.filter((x) => x.k !== 'invit').map((x) => (x.k === 'open' ? lauds : x)) };
+}
+function composeOffice(dateStr, hour, choiceId = '') {
   const { L, choices } = dayInfo(dateStr);
   let { pg, notes } = basePage(dateStr, hour, L);
   notes.unshift(...L.notes.filter((n) => n.startsWith('農曆新春')));

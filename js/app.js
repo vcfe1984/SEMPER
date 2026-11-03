@@ -1,7 +1,7 @@
 import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
-const APP_VERSION = 'v13';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v15';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -154,16 +154,20 @@ function render() {
   const head = fv ? r.title.replace(/^[^　\s]*月[^　\s]*日[　\s]*/, '').replace(/（聖詠集[^）]*）/g, '').trim() : hourName;
   let html = fv ? `<h1>${esc(head)}</h1>` : '';   // the hour itself is already the selected tab
   if (r.notes.length) html += `<div class="notes">${r.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</div>`;
+  // the invitatory opens the day's prayer (GILH 35); wording of the rubric after 《每日頌禱》:「如念序經，則省去此開端詞」
+  if (S.hour === '4' || S.hour === '1') html += `<p class="rub firsthour">如本時辰是一日的第一個祈禱，先念<a href="#" data-goto="0">序經</a>；如念序經，則省去此開端詞。</p>`;
   if (S.hour === '2') html += `<div class="subsel">${['午前', '午時', '午後'].map((x) => `<button class="pill" data-sub="${x}" aria-pressed="${x === S.sub}">${x}</button>`).join('')}</div>`;
   html += r.sections.length ? r.sections.map((s) => renderSection(s, S.hour)).join('') : `<p class="empty">此日日課尚未收錄。</p>`;
   $('#office').innerHTML = html;
+  $('#office').querySelectorAll('[data-goto]').forEach((a) => a.onclick = (e) => { e.preventDefault(); S.hour = a.dataset.goto; render(); window.scrollTo(0, 0); });
   $('#office').querySelectorAll('[data-sub]').forEach((b) => b.onclick = () => { S.sub = b.dataset.sub; store.set('sub', S.sub); render(); });
   $('#office').querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => { S.inv = b.dataset.inv; store.set('inv', S.inv); render(); });
   $('#office').querySelectorAll('[data-alt]').forEach((b) => b.onclick = () => { const [k, i] = b.dataset.alt.split(':'); S.alt[k] = +i; store.set('alt', S.alt); render(); });
   setHash();
   const cal = currentCalendar();
   if (cal === 'tw') retext('#office h1, #celebs', /周/g, '週');            // 台灣用「週」
-  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');      // 港澳用「亞孟」，其他用「阿門」
+  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');
+  if (!store.get('mi', true)) retext('#office', /祢/g, '你');               // 選擇以「你」稱呼天主（香港教區禮儀委員會原文）      // 港澳用「亞孟」，其他用「阿門」
   zh($('header') || document.body); zh($('#office')); zh($('#celebs') || document.body);
 }
 
@@ -185,6 +189,7 @@ function applyPrefs() {
   $('#rubrics').checked = store.get('rubrics', true);
   document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.theme === (th || '')));
   document.querySelectorAll('[data-script]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.script === store.get('script', 't')));
+  document.querySelectorAll('[data-mi]').forEach((b) => b.setAttribute('aria-pressed', (b.dataset.mi === '1') === store.get('mi', true)));
 }
 function renderCalendars() {
   const el = $('#calendars'); if (!el) return;
@@ -206,6 +211,7 @@ async function main() {
   $('#settings').onclick = (e) => { if (e.target.id === 'settings') $('#settings').hidden = true; };
   document.querySelectorAll('[data-fs]').forEach((b) => b.onclick = () => { store.set('fs', Math.max(14, Math.min(30, store.get('fs', 19) + Number(b.dataset.fs)))); applyPrefs(); });
   document.querySelectorAll('[data-theme]').forEach((b) => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); });
+  document.querySelectorAll('[data-mi]').forEach((b) => b.onclick = () => { store.set('mi', b.dataset.mi === '1'); applyPrefs(); render(); });
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
   window.addEventListener('hashchange', () => { parseHash(); render(); });
