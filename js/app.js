@@ -1,4 +1,4 @@
-import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms } from './office.js';
+import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
 const $ = (s) => document.querySelector(s);
@@ -19,6 +19,25 @@ function parseHash() {
 function setHash() {
   const c = S.choice[S.date];
   history.replaceState(null, '', `#/${S.date}/${S.hour}${c ? '?c=' + c : ''}`);
+}
+
+// ---------- 繁體 / 簡體 ----------
+// The texts are stored in 繁體字; with 簡體字 selected every text node is converted after rendering
+// (characters via OpenCC's table, plus the phrases where the character table alone would be wrong).
+let T2S = null;
+async function loadT2S() {
+  if (T2S || store.get('script', 't') !== 's') return;
+  try {
+    const d = await (await fetch('data/t2s.json')).json();
+    const ph = Object.keys(d.p).sort((a, b) => b.length - a.length);
+    T2S = { re: new RegExp((ph.length ? ph.join('|') + '|' : '') + '[\\u3400-\\u9fff]', 'g'), f: (x) => d.p[x] || d.c[x] || x };
+  } catch { T2S = null; }
+}
+function zh(root = document.body) {
+  if (!T2S || store.get('script', 't') !== 's') return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement && n.parentElement.closest('[data-script]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  for (let n = w.nextNode(); n; n = w.nextNode()) { const v = n.nodeValue.replace(T2S.re, T2S.f); if (v !== n.nodeValue) n.nodeValue = v; }
+  if (root === document.body) document.title = document.title.replace(T2S.re, T2S.f);
 }
 
 // ---------- rendering ----------
@@ -131,6 +150,7 @@ function render() {
   $('#office').querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => { S.inv = b.dataset.inv; store.set('inv', S.inv); render(); });
   $('#office').querySelectorAll('[data-alt]').forEach((b) => b.onclick = () => { const [k, i] = b.dataset.alt.split(':'); S.alt[k] = +i; store.set('alt', S.alt); render(); });
   setHash();
+  zh($('header') || document.body); zh($('#office')); zh($('#celebs') || document.body);
 }
 
 function shift(n) { const d = fromIso(S.date); S.date = iso(new Date(d.getTime() + n * 864e5)); render(); window.scrollTo(0, 0); }
@@ -142,6 +162,14 @@ function applyPrefs() {
   document.body.classList.toggle('norubrics', !store.get('rubrics', true));
   $('#rubrics').checked = store.get('rubrics', true);
   document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.theme === (th || '')));
+  document.querySelectorAll('[data-script]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.script === store.get('script', 't')));
+}
+function renderCalendars() {
+  const el = $('#calendars'); if (!el) return;
+  const order = ['general', 'hk', 'mo', 'tw'];
+  el.innerHTML = calendarList().sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)).map((c) => `<button class="pill" data-cal="${c.id}" aria-pressed="${c.id === currentCalendar()}">${esc(c.name)}</button>`).join('');
+  el.querySelectorAll('[data-cal]').forEach((b) => b.onclick = () => { store.set('cal', b.dataset.cal); setCalendar(b.dataset.cal); renderCalendars(); render(); });
+  zh(el);
 }
 
 async function main() {
@@ -159,7 +187,15 @@ async function main() {
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
   window.addEventListener('hashchange', () => { parseHash(); render(); });
-  await loadData();
+  document.querySelectorAll('[data-script]').forEach((b) => b.onclick = async () => {
+    const was = store.get('script', 't'); store.set('script', b.dataset.script); applyPrefs();
+    if (was === b.dataset.script) return;
+    if (b.dataset.script === 't') { location.reload(); return; }   // back to 繁體: reload the original text
+    await loadT2S(); zh(); });
+  await Promise.all([loadData(), loadT2S()]);
+  setCalendar(store.get('cal', 'hk'));
+  renderCalendars();
+  zh();
   const { first, last } = nearestArchiveDate();
   $('#coverage').textContent = `存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
   render();

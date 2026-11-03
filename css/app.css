@@ -75,3 +75,4 @@ p { margin: 0; }
 .update button { background: var(--accent); color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 15px; }
 section { scroll-margin-top: 100px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: .2em 0 .8em; font-size: 15px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }

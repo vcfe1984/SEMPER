@@ -19,8 +19,39 @@ export async function loadData(base = 'data/') {
     ['days.json', 'texts.json', 'santoral.json', 'propers.json', 'commons.json', 'index.json'].map(get));
   D = { days, texts, santoral, propers, commons, index };
   try { D.invit = await get('invit.json'); } catch { D.invit = null; }
+  try { D.calendars = await get('calendars.json'); } catch { D.calendars = null; }
+  setCalendar(D.calId || 'hk');
   return D;
 }
+
+// ---------- calendars: General Roman, Hong Kong, Macau, Taiwan (data/calendars.json) ----------
+export function setCalendar(id) {
+  const all = D.calendars ? D.calendars.calendars : {};
+  const C = all[id] || null, hk = all.hk;
+  D.calId = C ? id : 'hk';
+  D.hkOpts = { ...(hk ? hk.rules : {}), lny: D.calendars ? D.calendars.lunarNewYear : null };
+  const build = (cal) => {
+    const rm = new Set(cal.remove || []), out = {};
+    for (const [md, list] of Object.entries(D.santoral)) for (const e of list) {
+      if (rm.has(e.id)) continue;
+      const e2 = { ...e };
+      if (cal.rank && cal.rank[e.id]) e2.rank = cal.rank[e.id];
+      if (cal.title && cal.title[e.id]) e2.title = cal.title[e.id];
+      (out[md] ||= []).push(e2);
+    }
+    for (const a of cal.add || []) (out[a.md] ||= []).push({ ...a });
+    return out;
+  };
+  D.hkSant = hk ? build(hk) : D.santoral;
+  D.sant = C ? build(C) : D.hkSant;
+  D.calOpts = C ? { ...C.rules, lny: D.calendars.lunarNewYear } : D.hkOpts;
+}
+export const calendarList = () => (D && D.calendars ? Object.entries(D.calendars.calendars).map(([id, c]) => ({ id, name: c.name })) : []);
+export const currentCalendar = () => D.calId;
+const LD = (date) => liturgicalDay(date, D.sant, D.calOpts);
+const primKey = (L) => { const p = L.primary; return `${p.source}|${p.source === 'temporal' || p.source === 'movable' ? L.temporal.key : p.id}|${p.rank}`; };
+/** May the archived (Hong Kong) page for this date be shown as is under the selected calendar? */
+const archiveFits = (dateStr, L) => D.calId === 'hk' || primKey(liturgicalDay(fromIso(dateStr), D.hkSant, D.hkOpts)) === primKey(L);
 
 const latest = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
 const page = (date, hour) => (date && D.days[date] ? D.days[date][hour] : null);
@@ -39,22 +70,26 @@ function insertAfter(secs, key, sec) {
 
 /** Celebration choices for the day: [{id, title, rank, kind}] — first is the default. */
 export function dayInfo(dateStr) {
-  const L = liturgicalDay(fromIso(dateStr), D.santoral);
+  const L = LD(fromIso(dateStr));
   const p = L.primary;
   const choices = [{ id: '', title: p.title, rank: p.rank, kind: p.source === 'temporal' ? 'temporal' : 'primary' }];
-  for (const o of L.options) choices.push({ id: o.id, title: o.title, rank: 'optional', kind: o.commemoration ? 'commemoration' : 'optional' });
+  for (const o of L.options) choices.push({ id: o.id, title: o.title, rank: 'optional', common: o.common, kind: o.commemoration ? 'commemoration' : 'optional' });
   return { L, choices, inArchive: !!D.days[dateStr] };
 }
 
 /** Base page for a date + hour (archive, or composed for dates outside the archive). Returns {page, notes, from}. */
 function basePage(dateStr, hour, L) {
   const notes = [];
-  if (D.days[dateStr]) return { pg: clone(page(dateStr, hour)), notes, from: dateStr };
+  if (D.days[dateStr] && archiveFits(dateStr, L)) return { pg: clone(page(dateStr, hour)), notes, from: dateStr };
   const p = L.primary, T = L.temporal, I = D.index;
   // feasts, solemnities, All Souls: whole page from the archive
   if (p.source === 'santoral' && p.rank !== 'memorial') {
     const src = latest(I.s[p.id]);
-    if (src) { notes.push(`經文取自 ${src} 的存檔`); return { pg: clone(page(src, hour)), notes, from: src }; }
+    if (src) {
+      const pg = clone(page(src, hour));
+      if (D.calId !== 'hk' && pg) pg.t = composedTitle(dateStr, L, hour);   // the archived page carries Hong Kong's title
+      notes.push(`經文取自 ${src} 的存檔`); return { pg, notes, from: src };
+    }
   }
   const key = p.source === 'movable' ? p.key : T.key;
   let src = latest(I.t[key]);
@@ -83,17 +118,21 @@ function basePage(dateStr, hour, L) {
     const a = cycles(fromIso(src)).sunday, b = L.cycles.sunday;
     if (T.wd === 0 && a !== b && (hour === '1' || hour === '3')) notes.push(`主日福音對經按${a}年（本年為${b}年）`);
   }
-  // obligatory memorial on a composed day → overlay from the archived memorial page
-  if (p.source === 'santoral' && p.rank === 'memorial') {
-    const ms = latest(I.s[p.id]);
+  // a saint's day on a composed day: the memorial's own archived page if there is one, otherwise its common
+  if (p.source === 'santoral') {
+    const ms = p.rank === 'memorial' ? latest(I.s[p.id]) : null;
     if (ms && SANCT[hour]) {
       const mp = clone(page(ms, hour));
       for (const k of SANCT[hour]) { const s = mp.s.find((x) => x.k === k); if (s) replaceSection(pg.s, k, s); }
       if (hour === '1') { const s = mp.s.find((x) => x.k === 'invit'); if (s) replaceSection(pg.s, 'invit', s); }
       notes.push(`紀念部分取自 ${ms}`);
+    } else if (SANCT[hour] && p.lord) {
+      // a feast of the Lord: no common of saints; the weekday texts stand until the proper office is added
+      replaceSection(pg.s, 'oratio', { tag: '本慶節尚無專用禱詞：暫用平日' });
+      notes.push('本慶節的專用經文尚待補充；暫用平日經文');
     } else if (SANCT[hour]) {
-      const c = D.propers[p.id];
-      if (c && c.collect) replaceSection(pg.s, 'oratio', { lines: [c.collect], tag: '專用' });
+      const cs = overlaySaint(pg, p, L, hour);
+      notes.push(`本${p.rank === 'memorial' ? '紀念' : '慶節'}的專用經文尚待補充；暫用${cs[0]}通用`);
     }
   }
   return { pg, notes, from: src };
@@ -117,7 +156,7 @@ function eveCandidates(L) {
   return (dates || []).map(prevDay).filter((e) => isFirstVespersPage(e, '3')).reverse();
 }
 function eveOverride(dateStr, hour, L, pg, notes) {
-  const L2 = liturgicalDay(fromIso(nextDay(dateStr)), D.santoral);
+  const L2 = LD(fromIso(nextDay(dateStr)));
   const pToday = L.primary.prec ?? L.temporal.prec, pTomorrow = L2.primary.prec ?? L2.temporal.prec;
   const wantFirst = hasFirstVespers(L2) && pTomorrow < pToday;
   if (wantFirst) {
@@ -167,6 +206,28 @@ function composedTitle(dateStr, L, hour) {
   const ps = T.psalter && !(p.rank === 'solemnity' || p.rank === 'feast') ? `（聖詠集第${'一二三四'[T.psalter - 1]}周）` : '';
   return `${dateLabel(dateStr)}　${p.title}${rank}${ps}　${HOUR_NAME[hour]}`;
 }
+/** Apply a saint's texts over a weekday page: common parts, proper collect, proper second reading. Returns the commons used. */
+function overlaySaint(pg, entry, L, hour) {
+  const P = D.propers[entry.id] || {};
+  const collect = collectFor(entry.id, L);
+  const cs = D.index.c[entry.id] || (entry.common ? [entry.common] : ['聖人']);
+  const season = seasonOf(L);
+  for (const key of SANCT[hour] || []) {
+    if (key === 'oratio') {
+      if (collect) replaceSection(pg.s, 'oratio', { lines: [collect], id: '', tag: '專用' });
+      else replaceSection(pg.s, 'oratio', { tag: '本紀念尚無專用禱詞：暫用平日' });
+      continue;
+    }
+    if (key === 'r2') {
+      if (P.r2) replaceSection(pg.s, 'r2', { lines: P.r2, id: '', tag: '專用' });
+      else replaceSection(pg.s, 'r2', { tag: '專用誦讀尚未收錄：暫用平日' });
+      continue;
+    }
+    const cs1 = commonSection(cs, season, hour, key);
+    if (cs1) replaceSection(pg.s, key, { h: cs1.h, id: cs1.id, lines: undefined, tag: cs1.tag });
+  }
+  return cs;
+}
 function seasonOf(L) { return L.temporal.season === 'easter' ? 'easter' : 'ord'; }
 function commonSection(cs, season, hour, key) {
   for (const c of cs) {
@@ -187,8 +248,11 @@ function collectFor(id, L) {
 export function office(dateStr, hour, choiceId = '') {
   const { L, choices } = dayInfo(dateStr);
   let { pg, notes } = basePage(dateStr, hour, L);
+  notes.unshift(...L.notes.filter((n) => n.startsWith('農曆新春')));
   let firstVespers = false;
-  if ((hour === '3' || hour === '5') && !D.days[dateStr]) {
+  const nextIso = iso(new Date(fromIso(dateStr).getTime() + 864e5));
+  const archived = D.days[dateStr] && archiveFits(dateStr, L) && (D.calId === 'hk' || archiveFits(nextIso, LD(fromIso(nextIso))));
+  if ((hour === '3' || hour === '5') && !archived) {
     const before = pg; pg = eveOverride(dateStr, hour, L, pg, notes);
     firstVespers = pg !== before && /第一(晚禱|夜禱)/.test(pg.t);
   }
@@ -202,22 +266,7 @@ export function office(dateStr, hour, choiceId = '') {
     if (choice.kind === 'commemoration') {
       insertAfter(pg.s, 'oratio', { k: 'commem', h: `紀念：${choice.title}`, lines: [collect || '（本紀念的集禱經尚未收錄）'], tag: '紀念' });
     } else {
-      const cs = D.index.c[choice.id] || ['聖人'];
-      const season = seasonOf(L);
-      for (const key of SANCT[hour]) {
-        if (key === 'oratio') {
-          if (collect) replaceSection(pg.s, 'oratio', { lines: [collect], id: '', tag: '專用' });
-          else replaceSection(pg.s, 'oratio', { tag: '本紀念尚無專用禱詞：暫用平日' });
-          continue;
-        }
-        if (key === 'r2') {
-          if (P.r2) replaceSection(pg.s, 'r2', { lines: P.r2, id: '', tag: '專用' });
-          else replaceSection(pg.s, 'r2', { tag: '專用誦讀尚未收錄：暫用平日' });
-          continue;
-        }
-        const cs1 = commonSection(cs, season, hour, key);
-        if (cs1) replaceSection(pg.s, key, { h: cs1.h, id: cs1.id, lines: undefined, tag: cs1.tag });
-      }
+      const cs = overlaySaint(pg, choice, L, hour);
       title = `${dateLabel(dateStr)}　${choice.title}（自由紀念）（${cs[0]}通用）　${HOUR_NAME[hour]}`;
     }
     if (P.bio && (hour === '4' || hour === '1')) pg.s.unshift({ k: 'bio', h: choice.title, lines: P.bio.split('\n') });

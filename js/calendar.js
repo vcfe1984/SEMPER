@@ -147,9 +147,19 @@ export function liturgicalDay(date, santoral = {}, opts = {}) {
   const out = { date: iso(date), temporal: tp, cycles: cycles(date), primary: null, options: [], notes: [] };
   // movable memorials behave like memorials over their weekday
   const fixed = (santoral[md] || []).map((c) => ({ ...c, prec: precOf(c), md }));
-  // 香港教區：中華聖母（紀念）— 五月第二主日前的星期六
-  { const y = date.getUTCFullYear(), m1 = d(y, 5, 1); const sun2 = add(m1, ((7 - dow(m1)) % 7) + 7);
-    if (iso(date) === iso(add(sun2, -1))) fixed.push({ id: 'our-lady-china', title: '中華聖母', rank: 'memorial', prec: PREC.MEMORIAL, md }); }
+  // movable regional celebrations (per calendar, see data/calendars.json)
+  const y = date.getUTCFullYear(), today = iso(date), E = easter(y), k = diff(date, E);
+  const lny = opts.lny && opts.lny[y];
+  const extra = (id, title, rank, more = {}) => fixed.push({ id, title, rank, md, ...more, prec: precOf({ rank, ...more }) });
+  if (opts.ladyChina) {   // 中華聖母: HK/TW — Saturday before the 2nd Sunday of May; Macau — Lunar New Year (feast)
+    let when = null;
+    if (opts.ladyChina.when === 'may') { const m1 = d(y, 5, 1); when = iso(add(add(m1, ((7 - dow(m1)) % 7) + 7), -1)); }
+    if (opts.ladyChina.when === 'lny') when = lny;
+    if (today === when) extra('our-lady-china', '中華聖母', opts.ladyChina.rank || 'memorial');
+  }
+  if (opts.highPriest && k === 53) extra('high-priest', '我們的主耶穌基督——永恆的大司祭', 'feast', { lord: true });
+  if (opts.fiveWounds && k === -44) extra('five-wounds', '耶穌五傷', 'feast', { lord: true });
+  if (opts.lunarNewYear && today === lny) out.notes.push('農曆新春（可舉行新春感恩祭）');
   if (tp.movable) {
     const base = { ...tp, key: tp.base, title: tp.title };
     out.primary = { ...fixed.find(() => false), ...tp, source: 'movable' };
