@@ -120,7 +120,7 @@ function renderCelebs(info) {
   const d = fromIso(S.date);
   const tp = info.L.temporal;
   const el = $('#celebs');
-  const parts = [`<div class="day">${WD[d.getUTCDay()]}${info.L.primary.source === 'santoral' ? '・' + tp.title : ''}${tp.psalter ? `・聖詠集第${'一二三四'[tp.psalter - 1]}周` : ''}・主日${info.L.cycles.sunday}年・平日${info.L.cycles.weekday}年</div>`];
+  const parts = [`<div class="day">${info.L.primary.source === 'santoral' && tp.title ? tp.title : WD[d.getUTCDay()]}${tp.psalter ? `・聖詠集第${'一二三四'[tp.psalter - 1]}周` : ''}・主日${info.L.cycles.sunday}年・平日${info.L.cycles.weekday}年</div>`];
   const cur = S.choice[S.date] || '';
   if (info.choices.length > 1) {
     for (const c of info.choices) {
@@ -146,7 +146,12 @@ function render() {
   $('#hours').innerHTML = HOURS.map((h) => `<button role="tab" data-h="${h.n}" aria-selected="${h.n === S.hour}">${h.short}</button>`).join('');
   $('#hours').querySelectorAll('button').forEach((b) => b.onclick = () => { S.hour = b.dataset.h; render(); window.scrollTo(0, 0); });
   const r = office(S.date, S.hour, S.choice[S.date] || '');
-  let html = `<h1>${esc(r.title)}</h1>`;
+  // the date and the day's celebration are already shown above; the heading names the hour only
+  // (on the eve of a solemnity or Sunday it also names the celebration whose First Vespers/Compline this is)
+  const hourName = HOURS.find((h) => h.n === S.hour).name;
+  const fv = /第一(晚禱|夜禱)/.test(r.title);
+  const head = fv ? r.title.replace(/^[^　\s]*月[^　\s]*日[　\s]*/, '').replace(/（聖詠集[^）]*）/g, '').trim() : hourName;
+  let html = fv ? `<h1>${esc(head)}</h1>` : '';   // the hour itself is already the selected tab
   if (r.notes.length) html += `<div class="notes">${r.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</div>`;
   if (S.hour === '2') html += `<div class="subsel">${['午前', '午時', '午後'].map((x) => `<button class="pill" data-sub="${x}" aria-pressed="${x === S.sub}">${x}</button>`).join('')}</div>`;
   html += r.sections.length ? r.sections.map((s) => renderSection(s, S.hour)).join('') : `<p class="empty">此日日課尚未收錄。</p>`;
