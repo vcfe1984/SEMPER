@@ -99,7 +99,7 @@ body.has-tts .update { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .welcome.out { opacity: 0; pointer-events: none; }
 .welcome-in { text-align: center; max-width: 360px; width: 100%; }
 .welcome-logo { width: 116px; height: 116px; border-radius: 26px; }
-.welcome h1 { font-size: 30px; letter-spacing: .32em; margin: 22px 0 2px; padding-left: .32em; color: var(--accent); font-weight: 700; }
+.welcome h1 { font-size: 30px; letter-spacing: .32em; margin: 22px 0 0; padding-left: .32em; color: var(--accent); font-weight: 700; }
 .welcome-sub { margin: 0 0 28px; color: var(--muted); letter-spacing: .3em; padding-left: .3em; font-size: 17px; }
 .welcome-verse { margin: 0 0 30px; font-size: 20px; line-height: 1.8; color: var(--ink); }
 .welcome-verse cite { display: block; font-style: normal; font-size: 14px; color: var(--red); margin-top: 6px; }
@@ -108,3 +108,4 @@ body.has-tts .update { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .welcome-script .pill { font-size: 17px; padding: 8px 20px; }
 .welcome-go { font-size: 17px; background: var(--accent); color: #fff; border-color: var(--accent); }
 .welcome[hidden] { display: none; }
+.welcome-zh { margin: 4px 0 28px; font-size: 26px; letter-spacing: .4em; padding-left: .4em; color: var(--accent); font-weight: 700; }

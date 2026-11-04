@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v22';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v24';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
