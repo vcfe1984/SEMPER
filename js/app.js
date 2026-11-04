@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v19';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v22';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -223,6 +223,11 @@ async function main() {
     if (b.dataset.script === 't') { location.reload(); return; }   // back to 繁體: reload the original text
     await loadT2S(); zh(); });
   initTTS(store);
+  // welcome screen: the first time it waits for the reader (and the choice of 繁體／简体); afterwards it closes by itself once the texts are loaded
+  const W = $('#welcome'), t0 = Date.now(), firstRun = !store.get('welcomed', false);
+  const closeWelcome = () => { if (!W || W.hidden) return; store.set('welcomed', true); W.classList.add('out'); setTimeout(() => { W.hidden = true; }, 400); };
+  $('#welcomeGo').onclick = closeWelcome;
+  if (!firstRun) W.onclick = (e) => { if (!e.target.closest('[data-script]')) closeWelcome(); };
   await Promise.all([loadData(), loadT2S()]);
   setCalendar(store.get('cal', 'hk'));
   renderCalendars();
@@ -230,6 +235,7 @@ async function main() {
   const { first, last } = nearestArchiveDate();
   $('#coverage').textContent = `版本 ${APP_VERSION}　存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
   render();
+  if (!firstRun) setTimeout(closeWelcome, Math.max(0, 1600 - (Date.now() - t0)));
   if (navigator.serviceWorker && navigator.serviceWorker.register && location.protocol !== 'file:') try {
     navigator.serviceWorker.register('sw.js').then((reg) => {
       reg.addEventListener('updatefound', () => { const w = reg.installing; w && w.addEventListener('statechange', () => {

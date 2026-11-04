@@ -6,12 +6,23 @@
 <title>SEPTIES</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
+<div id="welcome" class="welcome">
+  <div class="welcome-in">
+    <img src="icons/icon-512.png" alt="" class="welcome-logo">
+    <h1>SEPTIES</h1>
+    <p class="welcome-sub">時辰頌禱</p>
+    <blockquote class="welcome-verse">我要每天讚美祢七次。<cite>聖詠 119:164</cite><span class="welcome-lat">SEPTIES 是拉丁文，意即「七次」，出自這節聖詠。</span></blockquote>
+    <div class="welcome-script"><button data-script="t" class="pill">繁體字</button><button data-script="s" class="pill">简体字</button></div>
+    <button id="welcomeGo" class="pill wide welcome-go">進入</button>
+  </div>
+</div>
 <header class="top">
   <div class="bar">
     <button id="prev" class="ic" aria-label="前一天">‹</button>
