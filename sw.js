@@ -1,7 +1,7 @@
 // Service worker：全部經文離線可用。更新時請改 VERSION。
-const VERSION = 'rike-v17';
+const VERSION = 'rike-v19';
 const FONTS = 'fonts-v1';   // change only when the font files change
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/calendar.js', 'js/office.js', 'manifest.webmanifest',
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/calendar.js', 'js/office.js', 'js/tts.js', 'manifest.webmanifest',
   'css/fonts.css', 'icons/icon-192.png', 'icons/icon-512.png',
   'data/days.json', 'data/texts.json', 'data/santoral.json', 'data/propers.json', 'data/commons.json', 'data/index.json', 'data/invit.json', 'data/calendars.json', 'data/t2s.json'];
 // cache: 'reload' bypasses the browser's HTTP cache (GitHub Pages keeps files 10 minutes), so a new version never

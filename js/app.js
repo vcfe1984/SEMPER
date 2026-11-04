@@ -1,7 +1,8 @@
 import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
+import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v17';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v19';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -138,6 +139,7 @@ function renderCelebs(info) {
 }
 
 function render() {
+  stopTTS();   // new text on screen: stop reading
   const info = dayInfo(S.date);
   if (!info.choices.some((c) => c.id === (S.choice[S.date] || ''))) S.choice[S.date] = '';
   const [y, m, d] = S.date.split('-').map(Number);
@@ -220,6 +222,7 @@ async function main() {
     if (was === b.dataset.script) return;
     if (b.dataset.script === 't') { location.reload(); return; }   // back to 繁體: reload the original text
     await loadT2S(); zh(); });
+  initTTS(store);
   await Promise.all([loadData(), loadT2S()]);
   setCalendar(store.get('cal', 'hk'));
   renderCalendars();
