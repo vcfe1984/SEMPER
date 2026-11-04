@@ -1,7 +1,7 @@
 import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
-const APP_VERSION = 'v16';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v17';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -166,8 +166,7 @@ function render() {
   setHash();
   const cal = currentCalendar();
   if (cal === 'tw') retext('#office h1, #celebs', /周/g, '週');            // 台灣用「週」
-  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');
-  if (!store.get('mi', true)) retext('#office', /祢/g, '你');               // 選擇以「你」稱呼天主（香港教區禮儀委員會原文）      // 港澳用「亞孟」，其他用「阿門」
+  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');      // 港澳用「亞孟」，其他用「阿門」
   zh($('header') || document.body); zh($('#office')); zh($('#celebs') || document.body);
 }
 
@@ -191,7 +190,6 @@ function applyPrefs() {
   document.querySelectorAll('[data-script]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.script === store.get('script', 't')));
   const ft = store.get('font', 'ming'); if (ft === 'ming') delete root.dataset.font; else root.dataset.font = ft;
   document.querySelectorAll('[data-font]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.font === ft));
-  document.querySelectorAll('[data-mi]').forEach((b) => b.setAttribute('aria-pressed', (b.dataset.mi === '1') === store.get('mi', true)));
 }
 function renderCalendars() {
   const el = $('#calendars'); if (!el) return;
@@ -214,7 +212,6 @@ async function main() {
   document.querySelectorAll('[data-fs]').forEach((b) => b.onclick = () => { store.set('fs', Math.max(14, Math.min(30, store.get('fs', 19) + Number(b.dataset.fs)))); applyPrefs(); });
   document.querySelectorAll('[data-theme]').forEach((b) => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); });
   document.querySelectorAll('[data-font]').forEach((b) => b.onclick = () => { store.set('font', b.dataset.font); applyPrefs(); });
-  document.querySelectorAll('[data-mi]').forEach((b) => b.onclick = () => { store.set('mi', b.dataset.mi === '1'); applyPrefs(); render(); });
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
   window.addEventListener('hashchange', () => { parseHash(); render(); });
