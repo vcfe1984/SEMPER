@@ -1,8 +1,12 @@
 :root {
   --bg: #ffffff; --paper: #f8f6f3; --ink: #222; --muted: #77706a; --red: #a3241c; --line: #e6e1da; --chip: #f2eee9; --accent: #7a1c1c;
   --fs: 19px;
-  font-family: "Noto Serif TC", "Songti TC", "PMingLiU", "MingLiU", "Noto Serif CJK TC", serif;
+  --font: "SeptiesMing", "Noto Serif TC", "Songti TC", "PMingLiU", "Noto Serif CJK TC", serif;
+  font-family: var(--font);
 }
+:root[data-font="hei"] { --font: "SeptiesHei", "PingFang TC", "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif; }
+:root[data-font="kai"] { --font: "SeptiesKai", "Kaiti TC", "DFKai-SB", "BiauKai", serif; }
+:root[data-font="sys"] { --font: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans CJK TC", sans-serif; }
 :root[data-theme="sepia"] { --bg: #f3ead8; --paper: #f8f0df; --ink: #3b2f22; --muted: #82725d; --line: #e0d2b6; --chip: #eadcc1; }
 :root[data-theme="dark"] { --bg: #151312; --paper: #1c1a18; --ink: #e9e3da; --muted: #9a9087; --red: #e0826f; --line: #34302c; --chip: #2a2623; --accent: #c4574a; }
 @media (prefers-color-scheme: dark) {
@@ -79,3 +83,4 @@ section { scroll-margin-top: 100px; }
 #office > section:first-child .sh { margin-top: .4em; }
 .firsthour { font-size: .8em; margin: .4em 0 -.2em; }
 .firsthour a { color: inherit; text-decoration: underline; }
+section.bio { margin: 1.4em 0 1.2em; }

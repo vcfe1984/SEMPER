@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -30,10 +31,11 @@
     <div class="row"><span>禮儀日曆</span><span id="calendars" class="pills"></span></div>
     <div class="row"><span>文字</span><button data-script="t" class="pill">繁體字</button><button data-script="s" class="pill">简体字</button></div>
     <div class="row"><span>稱呼天主</span><button data-mi="1" class="pill">祢</button><button data-mi="0" class="pill">你</button></div>
+    <div class="row"><span>字型</span><span class="pills"><button data-font="ming" class="pill" style="font-family:SeptiesMing,serif">明體</button><button data-font="hei" class="pill" style="font-family:SeptiesHei,sans-serif">黑體</button><button data-font="kai" class="pill" style="font-family:SeptiesKai,serif">楷體</button><button data-font="sys" class="pill" style="font-family:system-ui,sans-serif">系統</button></span></div>
     <div class="row"><span>字體大小</span><button data-fs="-1" class="pill">A−</button><button data-fs="1" class="pill">A＋</button></div>
     <div class="row"><span>外觀</span><button data-theme="light" class="pill">日間</button><button data-theme="sepia" class="pill">米黃</button><button data-theme="dark" class="pill">夜間</button></div>
     <label class="row"><input type="checkbox" id="rubrics" checked> 顯示說明及經文來源</label>
-    <p class="about">經文取自香港教區禮儀委員會「每日日課」（catholic-dlc.org.hk），原譯出自台灣地區主教團禮儀委員會《每日頌禱》及《每日禮讚》。自由紀念之集禱經取自禮儀委員會《平日彌撒》聖人專用部分；其餘取自相關通用部分。僅供私人及團體祈禱之用。</p>
+    <p class="about">經文取自香港教區禮儀委員會「每日日課」（catholic-dlc.org.hk），原譯出自台灣地區主教團禮儀委員會《每日頌禱》及《每日禮讚》。自由紀念之集禱經取自禮儀委員會《平日彌撒》聖人專用部分；其餘取自相關通用部分。僅供私人及團體祈禱之用。字型：思源宋體、思源黑體、霞鶩文楷 TC（SIL Open Font License）。</p>
     <p class="about" id="coverage"></p>
     <button id="closeSettings" class="pill wide">完成</button>
   </div>

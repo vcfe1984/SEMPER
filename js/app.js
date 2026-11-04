@@ -1,7 +1,7 @@
 import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitPsalms, setCalendar, calendarList, currentCalendar } from './office.js';
 import { fromIso, iso, WD } from './calendar.js';
 
-const APP_VERSION = 'v15';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v16';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -189,6 +189,8 @@ function applyPrefs() {
   $('#rubrics').checked = store.get('rubrics', true);
   document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.theme === (th || '')));
   document.querySelectorAll('[data-script]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.script === store.get('script', 't')));
+  const ft = store.get('font', 'ming'); if (ft === 'ming') delete root.dataset.font; else root.dataset.font = ft;
+  document.querySelectorAll('[data-font]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.font === ft));
   document.querySelectorAll('[data-mi]').forEach((b) => b.setAttribute('aria-pressed', (b.dataset.mi === '1') === store.get('mi', true)));
 }
 function renderCalendars() {
@@ -211,6 +213,7 @@ async function main() {
   $('#settings').onclick = (e) => { if (e.target.id === 'settings') $('#settings').hidden = true; };
   document.querySelectorAll('[data-fs]').forEach((b) => b.onclick = () => { store.set('fs', Math.max(14, Math.min(30, store.get('fs', 19) + Number(b.dataset.fs)))); applyPrefs(); });
   document.querySelectorAll('[data-theme]').forEach((b) => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); });
+  document.querySelectorAll('[data-font]').forEach((b) => b.onclick = () => { store.set('font', b.dataset.font); applyPrefs(); });
   document.querySelectorAll('[data-mi]').forEach((b) => b.onclick = () => { store.set('mi', b.dataset.mi === '1'); applyPrefs(); render(); });
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
