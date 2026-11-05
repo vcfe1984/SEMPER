@@ -1,7 +1,7 @@
 {
   "name": "七頌 SEPTIES — 時辰頌禱",
   "short_name": "七頌",
-  "description": "七頌 SEPTIES：香港教區每日日課（時辰頌禱），包括自由紀念",
+  "description": "七頌 SEPTIES：時辰頌禱，包括自由紀念；可選通用、香港、澳門及台灣禮儀日曆。",
   "lang": "zh-Hant-HK",
   "start_url": "./#/",
   "scope": "./",

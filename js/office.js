@@ -94,7 +94,7 @@ function basePage(dateStr, hour, L) {
     if (src) {
       const pg = clone(page(src, hour));
       if (D.calId !== 'hk' && pg) pg.t = composedTitle(dateStr, L, hour);   // the archived page carries Hong Kong's title
-      notes.push(`經文取自 ${src} 的存檔`); return { pg, notes, from: src };
+      return { pg, notes, from: src };
     }
   }
   const key = p.source === 'movable' ? p.key : T.key;
@@ -114,13 +114,12 @@ function basePage(dateStr, hour, L) {
       }
       pg.t = `${T.title}（聖詠集第${'一二三四'[T.psalter - 1] || ''}周）`;
       src = mem || psal;
-      notes.push(mem ? `平日經文取自 ${mem}；其餘取自聖詠集同周同日（${psal || '—'}）` : T.wd === 0 ? `本主日尚未收錄；經文暫取自聖詠集同周主日（${psal}），對經、讀經及結束禱詞待《每日頌禱》補充` : `本日尚未收錄；經文暫取自聖詠集同周同日（${psal}），誦讀及結束禱詞可能與本周不同`);
+      notes.push(mem ? '部分經文暫取自聖詠集同周同日' : T.wd === 0 ? `本主日尚未收錄；經文暫取自聖詠集同周主日，對經、讀經及結束禱詞待《每日頌禱》補充` : `本日尚未收錄；經文暫取自聖詠集同周同日，誦讀及結束禱詞可能與本周不同`);
     }
   }
-  if (!pg) return { pg: null, notes: ['此日日課尚未收錄於存檔，請待禮儀委員會發佈後更新。'], from: null };
+  if (!pg) return { pg: null, notes: ['此日日課尚未收錄。'], from: null };
   pg.t = composedTitle(dateStr, L, hour);
   if (src) {
-    notes.unshift(`經文取自 ${src} 的存檔`);
     const a = cycles(fromIso(src)).sunday, b = L.cycles.sunday;
     if (T.wd === 0 && a !== b && (hour === '1' || hour === '3')) notes.push(`主日福音對經按${a}年（本年為${b}年）`);
   }
@@ -131,7 +130,6 @@ function basePage(dateStr, hour, L) {
       const mp = clone(page(ms, hour));
       for (const k of SANCT[hour]) { const s = mp.s.find((x) => x.k === k); if (s) replaceSection(pg.s, k, s); }
       if (hour === '1') { const s = mp.s.find((x) => x.k === 'invit'); if (s) replaceSection(pg.s, 'invit', s); }
-      notes.push(`紀念部分取自 ${ms}`);
     } else if (SANCT[hour] && p.lord) {
       // a feast of the Lord: no common of saints; the weekday texts stand until the proper office is added
       replaceSection(pg.s, 'oratio', { tag: '本慶節尚無專用禱詞：暫用平日' });
@@ -170,10 +168,10 @@ function eveOverride(dateStr, hour, L, pg, notes) {
     if (eve) {
       const fv = clone(page(eve, hour));
       fv.t = `${dateLabel(dateStr)}　${L2.primary.title}${{ solemnity: '（節日）', feast: '（慶日）' }[L2.primary.rank] || ''}　${hour === '3' ? '第一晚禱' : '夜禱（主日第一夜禱）'}`;
-      notes.length = 0; notes.push(`經文取自 ${eve} 的存檔（${L2.primary.title}第一${hour === '3' ? '晚禱' : '夜禱'}）`);
+      notes.length = 0;
       return fv;
     }
-    notes.push(`今晚應誦念「${L2.primary.title}」的第一${hour === '3' ? '晚禱' : '夜禱'}，但存檔尚未收錄；暫用本日經文。`);
+    notes.push(`今晚應誦念「${L2.primary.title}」的第一${hour === '3' ? '晚禱' : '夜禱'}，但經文尚未收錄；暫用本日經文。`);
     return pg;
   }
   // the borrowed page was an eve in the archive year, but not this year → use the weekday office
@@ -190,14 +188,13 @@ function eveOverride(dateStr, hour, L, pg, notes) {
     if (alt) {
       const w = clone(page(alt, hour));
       w.t = composedTitle(dateStr, L, hour);
-      if (own) notes.push(`經文取自 ${own} 的存檔`);
-      else {
-        notes.push(`平日${HOUR_NAME[hour]}取自聖詠集同周同日（${psal}）`);
+      if (!own) {
+        notes.push(`平日${HOUR_NAME[hour]}暫取自聖詠集同周同日`);
         if (collect && hour === '3') { replaceSection(w.s, 'oratio', { lines: [collect], id: '', tag: '專用' }); notes.push(`「${p.title}」晚禱的專用對經等尚未收錄，暫用平日經文及本慶日集禱經。`); }
       }
       return w;
     }
-    notes.push(`「${p.title}」的${HOUR_NAME[hour]}尚未收錄於存檔。`);
+    notes.push(`「${p.title}」的${HOUR_NAME[hour]}尚未收錄。`);
     return { t: composedTitle(dateStr, L, hour), s: collect && hour === '3' ? [{ k: 'oratio', h: '結束禱詞', lines: [collect], tag: '專用' }] : [] };
   }
   return pg;

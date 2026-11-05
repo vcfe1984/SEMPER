@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v26';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v29';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -51,17 +51,14 @@ const MARK_END = /[※*＊†]\s*$/;
 function renderLine(l, ctx = {}) {
   let m;
   if (l.startsWith('§')) return `<h4 class="alt">${esc(l.slice(1))}</h4>`;
-  // dialogues for personal prayer: no 領／眾 labels; the leader's lines as text, the responses in red.
+  // ℣ 領 / ℟ 答 (答 also for 眾): only the labels are red, the text is black like all other text.
   // data-part tells the read-aloud which lines are the responses (in 一同祈禱 it pauses there for the reader).
   if ((m = l.match(/^(領|眾|答|啟|應)\s*[：:]\s*(.*)$/))) {
     const t = m[2].replace(/^[—─]{1,2}\s*/, '');
-    if ('領啟'.includes(m[1])) return `<p class="vr${t !== m[2] ? ' cont' : ''}" data-part="lead">${marks(t)}</p>`;
-    const st = ctx.st || {}; st.resp = (st.resp || 0) + 1;
-    const A = '<span class="spk">答：</span>';   // every response is marked 答 (instead of 眾)
-    if (ctx.k === 'interc') return st.resp === 1 ? `<p class="respbox" data-part="resp">${A}${marks(t)}</p>` : `<p class="rr" data-part="resp">${A}${marks(t)}</p>`;
-    return `<p class="vr resp" data-part="resp">${A}${marks(t)}</p>`;
+    if ('領啟'.includes(m[1])) return t !== m[2] ? `<p class="vr" data-part="lead">${marks(m[2])}</p>` : `<p class="vr" data-part="lead"><span class="spk">領：</span>${marks(t)}</p>`;
+    return `<p class="vr" data-part="resp"><span class="spk">答：</span>${marks(t)}</p>`;
   }
-  if (/^[—─]{1,2}/.test(l)) return `<p class="cont" data-part="lead">${marks(l.replace(/^[—─]{1,2}\s*/, ''))}</p>`;
+  if (/^[—─]{1,2}/.test(l)) return `<p class="cont" data-part="lead">${marks(l)}</p>`;   // second half of an intercession, with its dash
   if ((m = l.match(/^((?:謝主曲|讚主曲)?對經[一二三]?)\s*[：:]\s*(.*)$/))) return `<p class="ant"><span class="antl">${m[1]}：</span>${marks(m[2])}</p>`;
   if (/^(壹|貳|叁|肆|伍)$/.test(l)) return `<p class="part">${l}</p>`;
   if (/^(夜間或清晨用|日間用|午前|午時|午後)(\s*[（(].*[)）])?$/.test(l)) return `<h4 class="alt">${esc(l)}</h4>`;
@@ -134,19 +131,18 @@ function renderCelebs(info) {
   const tp = info.L.temporal;
   const el = $('#celebs');
   const parts = [`<div class="day">${info.L.primary.source === 'santoral' && tp.title ? tp.title : WD[d.getUTCDay()]}${tp.psalter ? `・聖詠集第${'一二三四'[tp.psalter - 1]}周` : ''}・主日${info.L.cycles.sunday}年・平日${info.L.cycles.weekday}年</div>`];
+  // the day's celebration as a heading (rank after it); when there is a choice, the options as a short list
   const cur = S.choice[S.date] || '';
+  const labOf = (c) => (c.kind === 'commemoration' ? '紀念' : c.kind === 'optional' ? '自由紀念' : ({ solemnity: '節日', feast: '慶日', memorial: '紀念' }[c.rank] || '平日'));
+  const sel = info.choices.find((c) => c.id === cur) || info.choices[0];
+  const selLab = labOf(sel) !== '平日' || info.choices.length > 1 ? labOf(sel) : '';
+  parts.push(`<h1 class="cel">${esc(sel.title)}${selLab ? `<span class="rank">${selLab}</span>` : ''}</h1>`);
   if (info.choices.length > 1) {
-    for (const c of info.choices) {
-      const lab = c.kind === 'commemoration' ? '紀念' : c.kind === 'optional' ? '自由紀念' : ({ solemnity: '節日', feast: '慶日', memorial: '紀念' }[c.rank] || '平日');
-      parts.push(`<button class="chip" data-c="${c.id}" aria-pressed="${c.id === cur}">${esc(c.title)}<small>${lab}</small></button>`);
-    }
-  } else {
-    const c = info.choices[0];
-    const lab = { solemnity: '節日', feast: '慶日', memorial: '紀念' }[c.rank] || '';
-    parts.push(`<span class="chip" aria-pressed="true">${esc(c.title)}${lab ? `<small>${lab}</small>` : ''}</span>`);
+    parts.push(`<div class="opts" role="radiogroup" aria-label="今日可選"><div class="opts-lab">今日可選：</div>${info.choices.map((c) =>
+      `<button class="opt" role="radio" data-c="${c.id}" aria-checked="${c.id === cur}"><span class="dot" aria-hidden="true">${c.id === cur ? '◉' : '○'}</span><span>${esc(c.title)} <small>${labOf(c)}</small></span></button>`).join('')}</div>`);
   }
   el.innerHTML = parts.join('');
-  el.querySelectorAll('button.chip').forEach((b) => b.onclick = () => { S.choice[S.date] = b.dataset.c; render(); });
+  el.querySelectorAll('button.opt').forEach((b) => b.onclick = () => { S.choice[S.date] = b.dataset.c; render(); });
 }
 
 function render() {
@@ -244,7 +240,7 @@ async function main() {
   renderCalendars();
   zh();
   const { first, last } = nearestArchiveDate();
-  $('#coverage').textContent = `版本 ${APP_VERSION}　存檔日期：${first} 至 ${last}；其他日期按禮儀日曆從存檔組合。`;
+  $('#coverage').textContent = `版本 ${APP_VERSION}`;
   render();
   if (!firstRun) setTimeout(closeWelcome, Math.max(0, 1600 - (Date.now() - t0)));
   if (navigator.serviceWorker && navigator.serviceWorker.register && location.protocol !== 'file:') try {
