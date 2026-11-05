@@ -21,6 +21,7 @@ export async function loadData(base = 'data/') {
   D = { days, texts, santoral, propers, commons, index };
   try { D.invit = await get('invit.json'); } catch { D.invit = null; }
   try { D.calendars = await get('calendars.json'); } catch { D.calendars = null; }
+  try { D.offices = await get('offices.json'); } catch { D.offices = {}; }   // proper offices not in the archive (build/build_offices.py)
   setCalendar(D.calId || 'hk');
   return D;
 }
@@ -61,7 +62,7 @@ const lines = (id) => (id ? D.texts[id] || [] : []);
 
 function replaceSection(secs, key, repl) {
   const i = secs.findIndex((s) => s.k === key);
-  if (i >= 0) secs[i] = { ...secs[i], ...repl, k: key };
+  if (i >= 0) secs[i] = { ...secs[i], lines: undefined, ...repl, k: key };
   return i >= 0;
 }
 function insertAfter(secs, key, sec) {
@@ -81,6 +82,9 @@ export function dayInfo(dateStr) {
 /** Base page for a date + hour (archive, or composed for dates outside the archive). Returns {page, notes, from}. */
 function basePage(dateStr, hour, L) {
   const notes = [];
+  // a celebration with its own complete office (e.g. 永恆的大司祭, Taiwan)
+  const own = D.offices && D.offices[L.primary.id] && D.offices[L.primary.id][hour];
+  if (own) return { pg: { t: composedTitle(dateStr, L, hour), s: own.map((x) => ({ k: x[0], h: x[1], lines: x[2], sub: x[3] })) }, notes, from: null };
   if (D.days[dateStr] && archiveFits(dateStr, L)) {
     const pg = clone(page(dateStr, hour));
     // another calendar may name the saint differently (e.g. Taiwan): retitle, keeping 第一晚禱 pages as they are
@@ -136,7 +140,8 @@ function basePage(dateStr, hour, L) {
       notes.push('本慶節的專用經文尚待補充；暫用平日經文');
     } else if (SANCT[hour]) {
       const cs = overlaySaint(pg, p, L, hour);
-      notes.push(`本${p.rank === 'memorial' ? '紀念' : '慶節'}的專用經文尚待補充；暫用${cs[0]}通用`);
+      const own = D.propers[p.id] || {};
+      notes.push(own.r2 || own.collect ? `本${p.rank === 'memorial' ? '紀念' : '慶節'}其餘經文取自${cs[0]}通用` : `本${p.rank === 'memorial' ? '紀念' : '慶節'}的專用經文尚待補充；暫用${cs[0]}通用`);
     }
   }
   return { pg, notes, from: src };
@@ -217,13 +222,23 @@ function overlaySaint(pg, entry, L, hour) {
   const season = seasonOf(L);
   for (const key of SANCT[hour] || []) {
     if (key === 'oratio') {
-      if (collect) replaceSection(pg.s, 'oratio', { lines: [collect], id: '', tag: '專用' });
+      if (collect) replaceSection(pg.s, 'oratio', { lines: P.collect_note ? [collect, `（${P.collect_note}）`] : [collect], id: '', tag: '專用' });
       else replaceSection(pg.s, 'oratio', { tag: '本紀念尚無專用禱詞：暫用平日' });
       continue;
     }
     if (key === 'r2') {
       if (P.r2) replaceSection(pg.s, 'r2', { lines: P.r2, id: '', tag: '專用' });
       else replaceSection(pg.s, 'r2', { tag: '專用誦讀尚未收錄：暫用平日' });
+      continue;
+    }
+    if (key === 'gospel' && (P.ant1 || P.ant3)) {
+      // proper (or common) antiphon for the Benedictus / Magnificat; in Eastertide with 阿肋路亞
+      let a = hour === '1' ? P.ant1 : hour === '3' ? P.ant3 : '';
+      const sec = pg.s.find((x) => x.k === 'gospel');
+      if (a && sec) {
+        if (L.temporal.season === 'easter' && !a.includes('阿肋路亞')) a = a.replace(/。$/, '，阿肋路亞。');
+        replaceSection(pg.s, 'gospel', { lines: (sec.lines || lines(sec.id)).map((x) => x.replace(/^((?:謝主曲|讚主曲)?對經)[：:].*$/, `$1：${a}`)), id: '' });
+      }
       continue;
     }
     const cs1 = commonSection(cs, season, hour, key);

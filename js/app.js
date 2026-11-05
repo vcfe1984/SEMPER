@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v32';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v35';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -194,6 +194,7 @@ function applyPrefs() {
   const th = store.get('theme', null); if (th) root.dataset.theme = th; else delete root.dataset.theme;
   document.body.classList.toggle('norubrics', !store.get('rubrics', true));
   $('#rubrics').checked = store.get('rubrics', true);
+  if ($('#showWelcome')) $('#showWelcome').checked = !store.get('skipWelcome', false);
   document.querySelectorAll('[data-theme]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.theme === (th || '')));
   document.querySelectorAll('[data-script]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.script === store.get('script', 't')));
   const ft = store.get('font', 'ming'); if (ft === 'ming') delete root.dataset.font; else root.dataset.font = ft;
@@ -220,6 +221,7 @@ async function main() {
   document.querySelectorAll('[data-fs]').forEach((b) => b.onclick = () => { store.set('fs', Math.max(14, Math.min(30, store.get('fs', 19) + Number(b.dataset.fs)))); applyPrefs(); });
   document.querySelectorAll('[data-theme]').forEach((b) => b.onclick = () => { store.set('theme', b.dataset.theme); applyPrefs(); });
   document.querySelectorAll('[data-font]').forEach((b) => b.onclick = () => { store.set('font', b.dataset.font); applyPrefs(); });
+  $('#showWelcome').onchange = (e) => { store.set('skipWelcome', !e.target.checked); };
   $('#rubrics').onchange = (e) => { store.set('rubrics', e.target.checked); applyPrefs(); };
   document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft') shift(-1); if (e.key === 'ArrowRight') shift(1); });
   window.addEventListener('hashchange', () => { parseHash(); render(); });
@@ -229,11 +231,12 @@ async function main() {
     if (b.dataset.script === 't') { location.reload(); return; }   // back to 繁體: reload the original text
     await loadT2S(); zh(); });
   initTTS(store);
-  // welcome screen: the first time it waits for the reader (and the choice of 繁體／简体); afterwards it closes by itself once the texts are loaded
-  const W = $('#welcome'), t0 = Date.now(), firstRun = !store.get('welcomed', false);
+  // welcome screen: stays until the reader has chosen 繁體／简体 (if wished) and taps 進入
+  // (with 「記住我的選擇」 it is not shown again; 設定 › 啟動時顯示歡迎畫面 turns it back on)
+  const W = $('#welcome');
   const closeWelcome = () => { if (!W || W.hidden) return; store.set('welcomed', true); W.classList.add('out'); setTimeout(() => { W.hidden = true; }, 400); };
-  $('#welcomeGo').onclick = closeWelcome;
-  if (!firstRun) W.onclick = (e) => { if (!e.target.closest('[data-script]')) closeWelcome(); };
+  if (store.get('skipWelcome', false)) W.hidden = true;
+  $('#welcomeGo').onclick = () => { if ($('#welcomeSkip').checked) { store.set('skipWelcome', true); applyPrefs(); } closeWelcome(); };
   await Promise.all([loadData(), loadT2S()]);
   setCalendar(store.get('cal', 'hk'));
   renderCalendars();
@@ -241,7 +244,6 @@ async function main() {
   const { first, last } = nearestArchiveDate();
   $('#coverage').textContent = `版本 ${APP_VERSION}`;
   render();
-  if (!firstRun) setTimeout(closeWelcome, Math.max(0, 1600 - (Date.now() - t0)));
   if (navigator.serviceWorker && navigator.serviceWorker.register && location.protocol !== 'file:') try {
     navigator.serviceWorker.register('sw.js').then((reg) => {
       reg.addEventListener('updatefound', () => { const w = reg.installing; w && w.addEventListener('statechange', () => {
