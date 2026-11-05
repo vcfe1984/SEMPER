@@ -115,7 +115,6 @@ body.has-tts .update { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .respbox { color: var(--red); border-left: 3px solid var(--red); background: var(--paper); padding: 4px 10px; margin: .4em 0 1em; }
 .s-interc .vr[data-part="lead"]:not(.cont) { margin-top: .9em; }
 .rr { color: var(--red); font-size: .88em; margin-top: .15em; }
-.speaking.waiting { outline: 2px dashed color-mix(in srgb, var(--red) 45%, transparent); outline-offset: 2px; }
 .tts-row { flex-wrap: nowrap; gap: 5px; }
 .tts .pill { font-size: 14px; padding: 4px 9px; white-space: nowrap; }
 .tts .seg { display: inline-flex; }

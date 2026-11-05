@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v29';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v30';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -52,7 +52,6 @@ function renderLine(l, ctx = {}) {
   let m;
   if (l.startsWith('§')) return `<h4 class="alt">${esc(l.slice(1))}</h4>`;
   // ℣ 領 / ℟ 答 (答 also for 眾): only the labels are red, the text is black like all other text.
-  // data-part tells the read-aloud which lines are the responses (in 一同祈禱 it pauses there for the reader).
   if ((m = l.match(/^(領|眾|答|啟|應)\s*[：:]\s*(.*)$/))) {
     const t = m[2].replace(/^[—─]{1,2}\s*/, '');
     if ('領啟'.includes(m[1])) return t !== m[2] ? `<p class="vr" data-part="lead">${marks(m[2])}</p>` : `<p class="vr" data-part="lead"><span class="spk">領：</span>${marks(t)}</p>`;
