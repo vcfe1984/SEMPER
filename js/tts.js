@@ -30,19 +30,26 @@ function collect() {
     if (!t) continue;
     // long paragraphs in sentences (some browsers stop long utterances)
     const parts = t.length > 120 ? t.match(/[^。！？；]+[。！？；」]*/g) || [t] : [t];
-    for (const p of parts) out.push({ el, t: p });
+    for (const p of parts) out.push({ el, t: p, resp: el.dataset.part === 'resp' });
   }
   return out;
 }
 
 function speakNext() {
   if (!playing || paused) return;
-  document.querySelectorAll('#office .speaking').forEach((x) => x.classList.remove('speaking'));
+  document.querySelectorAll('#office .speaking').forEach((x) => x.classList.remove('speaking', 'waiting'));
   if (pos >= queue.length) { stop(); return; }
   const { el, t } = queue[pos];
   el.classList.add('speaking');
   const r = el.getBoundingClientRect();
   if (r.top < 110 || r.bottom > innerHeight - 90) window.scrollBy({ top: r.top - 140, behavior: 'smooth' });
+  // 一同祈禱: the app says the leader's part; at the responses it waits (highlighted) for the reader to answer
+  if (queue[pos].resp && store.get('ttsMode', 'along') === 'along') {
+    el.classList.add('waiting');
+    const my = ++gen, ms = (t.length * 280) / store.get('ttsRate', 0.9) + 700;
+    setTimeout(() => { if (my === gen && playing && !paused) { el.classList.remove('waiting'); pos++; speakNext(); } }, ms);
+    return;
+  }
   const lang = store.get('ttsLang', 'yue');
   const u = new SpeechSynthesisUtterance(t);
   const v = voiceFor(lang);
@@ -58,7 +65,7 @@ function speakNext() {
 export function stop() {
   gen++; playing = false; paused = false; queue = []; pos = 0;
   if (synth) synth.cancel();
-  document.querySelectorAll('#office .speaking').forEach((x) => x.classList.remove('speaking'));
+  document.querySelectorAll('#office .speaking').forEach((x) => x.classList.remove('speaking', 'waiting'));
   paint();
 }
 function play() {
@@ -83,10 +90,11 @@ function msg(lang) {
 function paint() {
   if (!$bar) return;
   const lang = store.get('ttsLang', 'yue'), rate = store.get('ttsRate', 0.9);
-  $bar.querySelector('[data-tts="play"]').textContent = playing && !paused ? '❚❚ 暫停' : '▶ 朗讀';
+  $bar.querySelector('[data-tts="play"]').textContent = playing && !paused ? '❚❚' : '▶ 朗讀';
   $bar.querySelector('[data-tts="stop"]').hidden = !playing;
   $bar.querySelectorAll('[data-lang]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.lang === lang));
-  $bar.querySelector('[data-tts="rate"]').textContent = '速度：' + (RATES.find((r) => r[0] === rate) || RATES[1])[1];
+  $bar.querySelector('[data-tts="mode"]').textContent = store.get('ttsMode', 'along') === 'along' ? '一同祈禱' : '全部朗讀';
+  $bar.querySelector('[data-tts="rate"]').textContent = (RATES.find((r) => r[0] === rate) || RATES[1])[1] + '速';
 }
 
 export function initTTS(st) {
@@ -98,8 +106,8 @@ export function initTTS(st) {
   $bar.innerHTML = `<p class="tts-msg" hidden></p><div class="tts-row">
     <button class="pill" data-tts="play">▶ 朗讀</button><button class="pill" data-tts="stop" hidden>■</button>
     <span class="tts-sp"></span>
-    <button class="pill" data-lang="yue">粵語</button><button class="pill" data-lang="cmn">普通話</button>
-    <button class="pill" data-tts="rate"></button></div>`;
+    <span class="seg"><button class="pill" data-lang="yue">粵語</button><button class="pill" data-lang="cmn">普通話</button></span>
+    <button class="pill" data-tts="rate"></button><button class="pill" data-tts="mode"></button></div>`;
   document.body.appendChild($bar);
   $bar.querySelector('[data-tts="play"]').onclick = () => (playing && !paused ? pause() : play());
   $bar.querySelector('[data-tts="stop"]').onclick = stop;
@@ -110,6 +118,10 @@ export function initTTS(st) {
   $bar.querySelector('[data-tts="rate"]').onclick = () => {
     const i = RATES.findIndex((r) => r[0] === store.get('ttsRate', 0.9));
     store.set('ttsRate', RATES[(i + 1) % RATES.length][0]); paint();
+    if (playing && !paused) { gen++; synth.cancel(); speakNext(); }
+  };
+  $bar.querySelector('[data-tts="mode"]').onclick = () => {
+    store.set('ttsMode', store.get('ttsMode', 'along') === 'along' ? 'all' : 'along'); paint();
     if (playing && !paused) { gen++; synth.cancel(); speakNext(); }
   };
   document.body.classList.add('has-tts');

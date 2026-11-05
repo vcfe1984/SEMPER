@@ -109,3 +109,15 @@ body.has-tts .update { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .welcome-go { font-size: 17px; background: var(--accent); color: #fff; border-color: var(--accent); }
 .welcome[hidden] { display: none; }
 .welcome-zh { margin: 4px 0 28px; font-size: 26px; letter-spacing: .4em; padding-left: .4em; color: var(--accent); font-weight: 700; }
+/* 對話式經文（個人祈禱）：答句紅色；禱詞的答句先以框示，之後每項後重複 */
+.vr.resp { color: var(--red); }
+.cont { padding-left: 1.2em; }
+.respbox { color: var(--red); border-left: 3px solid var(--red); background: var(--paper); padding: 4px 10px; margin: .4em 0 1em; }
+.s-interc .vr:not(.cont) { margin-top: .9em; }
+.rr { color: var(--red); font-size: .88em; margin-top: .15em; }
+.speaking.waiting { outline: 2px dashed color-mix(in srgb, var(--red) 45%, transparent); outline-offset: 2px; }
+.tts-row { flex-wrap: nowrap; gap: 5px; }
+.tts .pill { font-size: 14px; padding: 4px 9px; white-space: nowrap; }
+.tts .seg { display: inline-flex; }
+.tts .seg .pill:first-child { border-radius: 16px 0 0 16px; }
+.tts .seg .pill:last-child { border-radius: 0 16px 16px 0; border-left: 0; }

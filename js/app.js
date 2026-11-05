@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v25';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v26';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -51,7 +51,17 @@ const MARK_END = /[※*＊†]\s*$/;
 function renderLine(l, ctx = {}) {
   let m;
   if (l.startsWith('§')) return `<h4 class="alt">${esc(l.slice(1))}</h4>`;
-  if ((m = l.match(/^(領|眾|答|啟|應)\s*[：:]\s*(.*)$/))) return `<p class="vr"><span class="spk">${m[1]}：</span>${marks(m[2])}</p>`;
+  // dialogues for personal prayer: no 領／眾 labels; the leader's lines as text, the responses in red.
+  // data-part tells the read-aloud which lines are the responses (in 一同祈禱 it pauses there for the reader).
+  if ((m = l.match(/^(領|眾|答|啟|應)\s*[：:]\s*(.*)$/))) {
+    const t = m[2].replace(/^[—─]{1,2}\s*/, '');
+    if ('領啟'.includes(m[1])) return `<p class="vr${t !== m[2] ? ' cont' : ''}" data-part="lead">${marks(t)}</p>`;
+    const st = ctx.st || {}; st.resp = (st.resp || 0) + 1;
+    const A = '<span class="spk">答：</span>';   // every response is marked 答 (instead of 眾)
+    if (ctx.k === 'interc') return st.resp === 1 ? `<p class="respbox" data-part="resp">${A}${marks(t)}</p>` : `<p class="rr" data-part="resp">${A}${marks(t)}</p>`;
+    return `<p class="vr resp" data-part="resp">${A}${marks(t)}</p>`;
+  }
+  if (/^[—─]{1,2}/.test(l)) return `<p class="cont" data-part="lead">${marks(l.replace(/^[—─]{1,2}\s*/, ''))}</p>`;
   if ((m = l.match(/^((?:謝主曲|讚主曲)?對經[一二三]?)\s*[：:]\s*(.*)$/))) return `<p class="ant"><span class="antl">${m[1]}：</span>${marks(m[2])}</p>`;
   if (/^(壹|貳|叁|肆|伍)$/.test(l)) return `<p class="part">${l}</p>`;
   if (/^(夜間或清晨用|日間用|午前|午時|午後)(\s*[（(].*[)）])?$/.test(l)) return `<h4 class="alt">${esc(l)}</h4>`;
@@ -69,8 +79,8 @@ function renderLine(l, ctx = {}) {
 }
 // a canticle that follows the responsory in the same section (夜禱: 西默盎聖歌) is set out verse by verse
 function renderLines(lines, s) {
-  let ctx = s;
-  return lines.map((l, i) => { if (!VERSE.has(ctx.k) && l.length < 40 && /^(西默盎|聖母謝主曲|匝加利亞)/.test(l)) ctx = { ...s, k: 'gospel' }; return renderLine(l, { ...ctx, prev: lines[i - 1] }); }).join('');
+  let ctx = { ...s, st: {} };
+  return lines.map((l, i) => { if (!VERSE.has(ctx.k) && l.length < 40 && /^(西默盎|聖母謝主曲|匝加利亞)/.test(l)) ctx = { ...ctx, k: 'gospel' }; return renderLine(l, { ...ctx, prev: lines[i - 1] }); }).join('');
 }
 const tabs = (attr, items, cur) => `<div class="tabs" role="tablist">${items.map(([v, lab]) => `<button class="pill" role="tab" ${attr}="${v}" aria-pressed="${v === cur}">${esc(lab)}</button>`).join('')}</div>`;
 
