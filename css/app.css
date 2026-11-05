@@ -128,6 +128,6 @@ body.has-tts .update { bottom: calc(70px + env(safe-area-inset-bottom)); }
 .celebs .opt { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; padding: 3px 0; text-align: left; color: var(--ink); background: none; border: 0; font: inherit; }
 .celebs .opt small { color: var(--muted); }
 .celebs .opt .dot { color: var(--red); }
-.welcome-remember { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 14px; color: var(--ink); margin: 4px 0 10px; }
-.welcome-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.welcome-remember { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 14px; color: var(--ink); margin: 4px 0 2px; }
+.welcome-note { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
 .nowelcome #welcome { display: none; }
