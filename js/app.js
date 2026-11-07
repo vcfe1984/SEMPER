@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v36';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v37';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -96,12 +96,12 @@ function renderInvit(s) {
   const ps = P[S.inv] || P['95'];
   const lab = { 95: '聖詠95', 100: '聖詠100', 67: '聖詠67', 24: '聖詠24' };
   const out = [`領：${ant}`, `眾：${ant}`];
-  const body = [`§${ps.title}`, ps.epi];
+  const body = [`§${ps.title}`, `¤${ps.epi}`];
   for (const st of ps.strophes) body.push(...st.map((l) => '¶' + l), `對經：${ant}`);
   body.push(...ps.gloria.map((l) => '¶' + l), `對經：${ant}`);
   const h = `<h2 class="sh">${esc(s.h)}${s.tag ? ` <span class="tag">${esc(s.tag)}</span>` : ''}</h2>`;
   const antTabs = ants.length > 1 ? tabs('data-alt', ants.map((a, j) => [`invit-ant:${j}`, `對經${'一二三四'[j]}`]), `invit-ant:${ai}`) : '';
-  return `<section class="s-invit">${h}${antTabs}${tabs('data-inv', ['95', '100', '67', '24'].map((k) => [k, lab[k]]), S.inv)}${out.map((l) => renderLine(l, s)).join('')}${body.map((l) => l.startsWith('§') ? `<p class="ps">${esc(l.slice(1))}</p>` : l.startsWith('¶') ? `<p>${marks(l.slice(1))}</p>` : renderLine(l, s)).join('')}</section>`;
+  return `<section class="s-invit">${h}${antTabs}${tabs('data-inv', ['95', '100', '67', '24'].map((k) => [k, lab[k]]), S.inv)}${out.map((l) => renderLine(l, s)).join('')}${body.map((l) => l.startsWith('§') ? `<p class="ps">${esc(l.slice(1))}</p>` : l.startsWith('¶') ? `<p>${marks(l.slice(1))}</p>` : l.startsWith('¤') ? `<p class="epi">${esc(l.slice(1))}</p>` : renderLine(l, s)).join('')}</section>`;
 }
 
 function renderSection(s, hour) {
