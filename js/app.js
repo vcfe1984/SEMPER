@@ -2,7 +2,7 @@ import { loadData, office, dayInfo, HOURS, dateLabel, nearestArchiveDate, invitP
 import { fromIso, iso, WD } from './calendar.js';
 import { initTTS, stop as stopTTS } from './tts.js';
 
-const APP_VERSION = 'v38';   // keep in step with VERSION in sw.js
+const APP_VERSION = 'v39';   // keep in step with VERSION in sw.js
 const $ = (s) => document.querySelector(s);
 const store = { get(k, d) { try { const v = localStorage.getItem('rike.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('rike.' + k, JSON.stringify(v)); } catch {} } };
@@ -174,7 +174,7 @@ function render() {
   setHash();
   const cal = currentCalendar();
   if (cal === 'tw') retext('#office h1, #celebs', /周/g, '週');            // 台灣用「週」
-  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿門');      // 港澳用「亞孟」，其他用「阿門」
+  if (cal !== 'hk' && cal !== 'mo') retext('#office', /亞孟/g, '阿們');      // 港澳用「亞孟」，其他用「阿們」
   zh($('header') || document.body); zh($('#office')); zh($('#celebs') || document.body);
 }
 
