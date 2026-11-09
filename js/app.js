@@ -75,9 +75,24 @@ function renderLine(l, ctx = {}) {
   return `<p${cls ? ` class="${cls}"` : ''}>${marks(l)}</p>`;
 }
 // a canticle that follows the responsory in the same section (夜禱: 西默盎聖歌) is set out verse by verse
+// 禱詞 (晨禱／晚禱): the people's response is shown once, after the introduction; each petition then ends with 【答】 instead of repeating it
+function compactInterc(lines) {
+  const seen = new Set(), out = [];
+  for (let l of lines) {
+    l = l.replace(/\s*［眾］\s*$/, '【答】');   // one text writes ［眾］ after each petition instead of repeating the response
+    if (/^眾\s*[：:]/.test(l)) {
+      const key = l.replace(/\s+/g, '');
+      if (seen.has(key)) { if (out.length && !/【答】$/.test(out[out.length - 1])) out[out.length - 1] += '【答】'; continue; }
+      seen.add(key);
+    }
+    out.push(l);
+  }
+  return out;
+}
 function renderLines(lines, s) {
+  if (s.k === 'interc') lines = compactInterc(lines);
   let ctx = { ...s, st: {} };
-  return lines.map((l, i) => { if (!VERSE.has(ctx.k) && l.length < 40 && /^(西默盎|聖母謝主曲|匝加利亞)/.test(l)) ctx = { ...ctx, k: 'gospel' }; return renderLine(l, { ...ctx, prev: lines[i - 1] }); }).join('');
+  return lines.map((l, i) => { if (!VERSE.has(ctx.k) && l.length < 40 && /^(西默盎|聖母謝主曲|匝加利亞)/.test(l)) ctx = { ...ctx, k: 'gospel' }; return renderLine(l, { ...ctx, prev: lines[i - 1] }); }).join('').replace(/【答】/g, '<span class="spk">【答】</span>');
 }
 const tabs = (attr, items, cur) => `<div class="tabs" role="tablist">${items.map(([v, lab]) => `<button class="pill" role="tab" ${attr}="${v}" aria-pressed="${v === cur}">${esc(lab)}</button>`).join('')}</div>`;
 
