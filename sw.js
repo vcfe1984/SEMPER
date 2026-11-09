@@ -1,5 +1,5 @@
 // Service worker：全部經文離線可用。更新時請改 VERSION。
-const VERSION = 'rike-v41';
+const VERSION = 'rike-v42';
 const FONTS = 'fonts-v1';   // change only when the font files change
 const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/calendar.js', 'js/office.js', 'js/tts.js', 'manifest.webmanifest',
   'css/fonts.css', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/icon-maskable-512.png',

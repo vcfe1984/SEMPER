@@ -66,7 +66,8 @@ function renderLine(l, ctx = {}) {
   if ((/^「.*」/.test(l) && (/[（(][^（）()]*\d[^（）()]*[）)]\s*$/.test(l) || /^(聖詠|聖歌|讚主曲|西默盎|匝加利亞|聖母謝主曲)/.test(ctx.prev || ''))) || /^（[^）]*）$/.test(l)) return `<p class="epi">${esc(l)}</p>`;
   if (l.length < 40 && /^(聖詠|聖歌|讚主曲|西默盎|匝加利亞|聖母謝主曲|\(路)/.test(l)) return `<p class="ps">${esc(l)}</p>`;
   if (/^(恭讀|選讀)/.test(l) && l.length < 60) return `<p class="rd">${esc(l)}</p>`;
-  if (/^(對答詠|領：|答：)/.test(l)) return `<p>${esc(l)}</p>`;
+  if (/^對答詠(\s|\u3000|$)/.test(l)) return `<h2 class="sh">${esc(l)}</h2>`;   // same header style as 開端詞、讚美詩、聖詠吟唱、誦讀一、誦讀二、讚主詩
+  if (/^(領：|答：)/.test(l)) return `<p>${esc(l)}</p>`;
   let cls = '';
   if (VERSE.has(ctx.k)) cls = MARK_END.test(l) ? '' : 've';
   else if (ctx.k === 'hymn') cls = /[。；！？」]\s*$/.test(l) ? 've' : '';
