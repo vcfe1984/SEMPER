@@ -65,8 +65,8 @@ function renderLine(l, ctx = {}) {
   // the sentence under a psalm title (「…」(希3:13)); quoted words inside a psalm stay psalm text
   if ((/^「.*」/.test(l) && (/[（(][^（）()]*\d[^（）()]*[）)]\s*$/.test(l) || /^(聖詠|聖歌|讚主曲|西默盎|匝加利亞|聖母謝主曲)/.test(ctx.prev || ''))) || /^（[^）]*）$/.test(l)) return `<p class="epi">${esc(l)}</p>`;
   if (l.length < 40 && /^(聖詠|聖歌|讚主曲|西默盎|匝加利亞|聖母謝主曲|\(路)/.test(l)) return `<p class="ps">${esc(l)}</p>`;
-  if (/^(恭讀|選讀)/.test(l) && l.length < 60) return `<p class="rd">${esc(l)}</p>`;
-  if (/^對答詠(\s|\u3000|$)/.test(l)) return `<h2 class="sh">${esc(l)}</h2>`;   // same header style as 開端詞、讚美詩、聖詠吟唱、誦讀一、誦讀二、讚主詩
+  if (/^(恭讀|選讀|續讀)/.test(l) && (l.length < 60 || (ctx.k === 'r2' && l.length < 200 && !/[。！？]/.test(l)))) return `<p class="rd">${esc(l)}</p>`;
+  if ((m = l.match(/^(對答詠)(?:[\s\u3000]+(.*))?$/))) return `<h2 class="sh">${m[1]}</h2>` + (m[2] ? `<p class="rd">${esc(m[2])}</p>` : '');   // label red, Bible reference black   // same header style as 開端詞、讚美詩、聖詠吟唱、誦讀一、誦讀二、讚主詩
   if (/^(領：|答：)/.test(l)) return `<p>${esc(l)}</p>`;
   let cls = '';
   if (VERSE.has(ctx.k)) cls = MARK_END.test(l) ? '' : 've';
@@ -105,6 +105,13 @@ function renderInvit(s) {
   return `<section class="s-invit">${h}${antTabs}${tabs('data-inv', ['95', '100', '67', '24'].map((k) => [k, lab[k]]), S.inv)}${out.map((l) => renderLine(l, s)).join('')}${body.map((l) => l.startsWith('§') ? `<p class="ps">${esc(l.slice(1))}</p>` : l.startsWith('¶') ? `<p>${marks(l.slice(1))}</p>` : l.startsWith('¤') ? `<p class="epi">${esc(l.slice(1))}</p>` : renderLine(l, s)).join('')}</section>`;
 }
 
+// 誦讀一／二: only the label is red; the source that follows (恭讀 / 選讀 …) is black, same style as the line under the header
+function secHead(s, tag) {
+  const m = (s.k === 'r1' || s.k === 'r2') && s.h && s.h.match(/^(誦讀[一二])[\s\u3000]+(.+)$/);
+  if (!m) return `<h2 class="sh">${esc(s.h)}${tag ? ` <span class="tag">${esc(tag)}</span>` : ''}</h2>`;
+  return `<h2 class="sh">${m[1]}${tag ? ` <span class="tag">${esc(tag)}</span>` : ''}</h2>` + (/^(恭讀|選讀|續讀)/.test(m[2]) ? `<p class="rd">${esc(m[2])}</p>` : `<p class="epi">${esc(m[2])}</p>`);
+}
+
 function renderSection(s, hour) {
   if (hour === '2' && s.sub && s.sub !== S.sub) return '';
   if (s.k === 'invit') { const r = renderInvit(s); if (r) return r; }
@@ -122,7 +129,7 @@ function renderSection(s, hour) {
     const pick = blocks.find((b) => b.h.startsWith(S.sub)) || blocks[0];
     lines = pick ? pick.l : lines;
   }
-  const h = s.h && !/^(午前|午時|午後)/.test(s.h) ? `<h2 class="sh">${esc(s.h)}${s.tag ? ` <span class="tag">${esc(s.tag)}</span>` : ''}</h2>` : '';
+  const h = s.h && !/^(午前|午時|午後)/.test(s.h) ? secHead(s, s.tag) : '';
   return `<section class="s-${s.k}">${h}${renderLines(lines, s)}</section>`;
 }
 
